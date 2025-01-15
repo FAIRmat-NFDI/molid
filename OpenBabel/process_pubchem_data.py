@@ -3,8 +3,8 @@ import sqlite3
 from simple_progress_bar import update_progress
 
 # Define the input and output file paths
-input_files = ["data/test_data.txt"]#, "../data/data_2.txt", "../data/data_3.txt"]  # List of input files
-database_file = "data/extracted_data_temp_2.db"
+input_files = ["../data/data_1.txt", "../data/data_2.txt", "../data/data_3.txt"]  # List of input files
+database_file = "data/extracted_data_temp.db"
 
 # Fields to extract
 fields_to_extract = {
