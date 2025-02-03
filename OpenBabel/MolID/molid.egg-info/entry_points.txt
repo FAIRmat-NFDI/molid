@@ -1,0 +1,3 @@
+[console_scripts]
+molid-db-manager = molid.db.db_manager:main
+molid-query = molid.pubchemproc.query:main
