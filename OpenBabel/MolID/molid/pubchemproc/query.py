@@ -1,13 +1,16 @@
 import os
-from molid.utils.conversion import convert_xyz_to_inchikey
+from ase import Atoms
+from ase.io import read
+from molid.utils.conversion import convert_xyz_to_inchikey, atoms_to_inchikey
 from molid.db.search import query_database
 
-def query_pubchem_database(xyz_file, database_file):
+
+def query_pubchem_database(input_data, database_file):
     """
     Queries a PubChem database using an XYZ molecular structure file.
 
     Args:
-        xyz_file (str): Path to the XYZ molecular structure file.
+        input_data (str or ase.Atoms): Path to an XYZ file or an ASE Atoms object.
         database_file (str): Path to the SQLite PubChem database file.
 
     Returns:
@@ -15,17 +18,18 @@ def query_pubchem_database(xyz_file, database_file):
             - InChIKey (str): The converted InChIKey from the XYZ file.
             - results (list): List of matching records from the database.
     """
-    if not os.path.exists(xyz_file):
-        raise FileNotFoundError(f"[ERROR] The specified XYZ file does not exist: {xyz_file}")
     if not os.path.exists(database_file):
         raise FileNotFoundError(f"[ERROR] The specified database file does not exist: {database_file}")
-
-    # Read the XYZ file
-    with open(xyz_file, "r") as file:
-        xyz_content = file.read()
-
-    # Convert XYZ to InChIKey
-    inchikey = convert_xyz_to_inchikey(xyz_content)
+    if isinstance(input_data, str):  # Assume it's an XYZ file
+        # Read the XYZ file
+        with open(input_data, "r") as file:
+            xyz_content = file.read()
+        # Convert XYZ to InChIKey
+        inchikey = convert_xyz_to_inchikey(xyz_content)
+    elif isinstance(input_data, Atoms):
+        inchikey = atoms_to_inchikey(input_data)
+    else:
+        raise TypeError("input_data must be a file path (str) or an ASE Atoms object.")
 
     # Query the database
     results = query_database(database_file, "InChIKey", inchikey)

@@ -1,3 +1,6 @@
+from ase import Atoms
+from ase.io import write
+from io import StringIO
 from openbabel import openbabel
 
 def convert_xyz_to_inchikey(xyz_content):
@@ -13,3 +16,10 @@ def convert_xyz_to_inchikey(xyz_content):
     ob_conversion.SetInAndOutFormats("inchi", "inchikey")
     inchikey = ob_conversion.WriteString(ob_mol).strip()
     return inchikey
+
+def atoms_to_inchikey(atoms):
+    """Convert an ASE Atoms object to an InChIKey using OpenBabel."""
+    xyz_buffer = StringIO()
+    write(xyz_buffer, atoms, format="xyz")
+    xyz_content = xyz_buffer.getvalue()
+    return convert_xyz_to_inchikey(xyz_content)

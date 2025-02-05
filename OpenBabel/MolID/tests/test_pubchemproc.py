@@ -3,6 +3,7 @@ import gzip
 import os
 import sqlite3
 from pathlib import Path
+from ase import Atoms
 from molid.pubchemproc.pubchem import process_file
 from molid.pubchemproc.file_handler import validate_gz_file, unpack_gz_file, cleanup_files
 from molid.pubchemproc.query import query_pubchem_database
@@ -54,9 +55,10 @@ class TestPubChemProcessing(unittest.TestCase):
 
 class TestXYZQueryIntegration(unittest.TestCase):
     def setUp(self):
-        """Set up a temporary database and sample XYZ file for testing."""
+        """Set up a temporary database and sample XYZ and ASE Atoms data for testing."""
         self.database_file = "test_compounds.db"
         self.xyz_file = "test_water.xyz"
+        self.atoms = Atoms("OH2", positions=[[0, 0, 0], [0, 0.757, 0.586], [0, -0.757, 0.586]])
 
         # Create a temporary database
         self.connection = sqlite3.connect(self.database_file)
@@ -89,9 +91,23 @@ class TestXYZQueryIntegration(unittest.TestCase):
         os.remove(self.database_file)
         os.remove(self.xyz_file)
 
-    def test_query_pubchem_database(self):
+    def test_query_pubchem_database_xyz(self):
         """Test querying a PubChem database using an XYZ file."""
         inchikey, results = query_pubchem_database(self.xyz_file, self.database_file)
+
+        # Assert InChIKey matches expected value
+        self.assertEqual(inchikey, "XLYOFNOQVPJJNP-UHFFFAOYSA-N")
+
+        # Assert query results contain expected values
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0][1], "XLYOFNOQVPJJNP-UHFFFAOYSA-N")  # InChIKey
+        self.assertEqual(results[0][2], "O")  # SMILES
+        self.assertEqual(results[0][3], "InChI=1S/H2O/h1H2")  # InChI
+        self.assertEqual(results[0][4], "7732-18-5")  # CAS Number
+
+    def test_query_pubchem_database_atoms(self):
+        """Test querying a PubChem database using an ASE Atoms object."""
+        inchikey, results = query_pubchem_database(self.atoms, self.database_file)
 
         # Assert InChIKey matches expected value
         self.assertEqual(inchikey, "XLYOFNOQVPJJNP-UHFFFAOYSA-N")
