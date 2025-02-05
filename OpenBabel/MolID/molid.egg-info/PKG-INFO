@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.2
 Name: molid
 Version: 0.1.0
 Summary: A package for processing PubChem data and managing a database of chemical compounds.

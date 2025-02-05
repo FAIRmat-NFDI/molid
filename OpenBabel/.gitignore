@@ -1,3 +1,4 @@
 molid/pubchemproc/__pycache__/query.cpython-38.pyc
 *cpython-38.pyc
 *.pyc
+*.egg-info*
