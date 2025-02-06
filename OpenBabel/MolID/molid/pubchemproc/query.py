@@ -44,15 +44,15 @@ def display_results(inchikey, results):
         inchikey (str): The InChIKey corresponding to the queried molecule.
         results (list): List of matching records from the database.
     """
-    print(f"\n🔍 **InChIKey:** {inchikey}")
+    print(f"\n**InChIKey:** {inchikey}")
 
     if results:
-        print("\n✅ **[RESULTS FOUND]**")
+        print("\n**[RESULTS FOUND]**")
         for row in results:
             print("\n--- **Compound Information** ---")
-            print(f"📌 **SMILES:** {row[2] if len(row) > 2 else 'N/A'}")
-            print(f"🔬 **InChI:** {row[3] if len(row) > 3 else 'N/A'}")
-            print(f"🆔 **CAS Number:** {row[4] if len(row) > 4 else 'N/A'}")
+            print(f"**SMILES:** {row[2] if len(row) > 2 else 'N/A'}")
+            print(f"**InChI:** {row[3] if len(row) > 3 else 'N/A'}")
+            print(f"**CAS Number:** {row[4] if len(row) > 4 else 'N/A'}")
     else:
         print("\n⚠️ **[WARNING]** No data found for the given InChIKey in the database.")
 
@@ -82,7 +82,7 @@ def main():
         display_results(inchikey, results)
 
     except Exception as e:
-        print(f"\n❌ **[ERROR]** {e}")
+        print(f"\n**[ERROR]** {e}")
 
 if __name__ == "__main__":
     main()
