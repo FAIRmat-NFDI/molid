@@ -3,6 +3,7 @@
 This repository contains a molecular identification pipeline for processing PubChem data, extracting chemical structures, and querying a local database using molecular fingerprints.
 
 ## Folder Structure
+```
 molid/ # Main package directory
 ├── init.py # Marks the folder as a package
 ├── pubchemproc/ # Contains PubChem processing functions
@@ -31,7 +32,7 @@ setup.py # Package metadata and installation script
 README.md # Documentation for the package
 LICENSE # License information
 requirements.txt # Dependencies required to run the package
-
+```
 ---
 
 ## Features
