@@ -1,93 +1,117 @@
-# molecule identification
+# Molecule Identification Pipeline
 
+This repository contains a molecular identification pipeline for processing PubChem data, extracting chemical structures, and querying a local database using molecular fingerprints.
 
+## Folder Structure
+- `molid/`
+  - `__init__.py` - Marks the folder as a package
+  - `pubchemproc/` - Contains PubChem processing functions
+    - `__init__.py`
+    - `pubchem.py` - Functions for downloading and processing PubChem data
+    - `file_handler.py` - File unpacking and validation
+    - `query.py` - Query database and CLI tool
+  - `db/` - Database-related functions
+    - `__init__.py`
+    - `database.py` - Database initialization and data storage
+    - `search.py` - Search functionality for molecular queries
+    - `db_manager.py` - Handles database creation and updates
+  - `utils/` - Shared utilities
+    - `__init__.py`
+    - `ftp_utils.py` - FTP-related functions for downloading PubChem data
+    - `disk_utils.py` - Disk space checks and cleanup
+    - `conversion.py` - Conversion of XYZ/Atoms to InChIKey
 
-## Getting started
+### Other Files
+- `tests/` - Unit tests
+  - `test_pubchemproc.py` - Tests for PubChem processing functions
+  - `test_db.py` - Tests for database functions
+  - `test_utils.py` - Tests for utility functions
+- `setup.py` - Package metadata and installation script
+- `README.md` - Documentation for the package
+- `LICENSE` - License information
+- `requirements.txt` - Dependencies required to run the package
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Features
 
-## Add your files
+- **Download & Process PubChem Data**
+  Extracts molecular properties from PubChem `.sdf.gz` files.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+- **Database Management**
+  Stores extracted molecular fingerprints in an SQLite database for efficient querying.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.mpcdf.mpg.de/tdenell/molecule-identification.git
-git branch -M main
-git push -uf origin main
-```
+- **Query System**
+  Allows users to search for molecules using **InChIKeys** or **SMILES** notation.
 
-## Integrate with your tools
+- **CLI Interface**
+  Users can interact with the pipeline via a command-line interface.
 
-- [ ] [Set up project integrations](https://gitlab.mpcdf.mpg.de/tdenell/molecule-identification/-/settings/integrations)
+- **Efficient Storage & Retrieval**
+  Uses indexing to speed up searches for molecular data.
 
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Ensure you have Python 3.8+ installed. Then, install dependencies:
+pip install -r requirements.txt
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Usage
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+**1️. Create a Database**
+To initialize an empty PubChem database:
+python -m molid.db_manager create --db-file pubchem_data.db
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+**2️. Download & Process PubChem Data**
+Download and store molecular data:
+python -m molid.db_manager update --db-file pubchem_data.db --max-files 10
+    --max-files: Specifies how many PubChem .sdf.gz files to process.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+**3️. Query the Database**
+Search for a molecule using an XYZ structure:
+python -m molid.pubchemproc.query example.xyz pubchem_data.db
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Example
+Example of using molid in a Python script:
+```
+from molid import query_pubchem_database
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# Define file paths
+xyz_file = "path/to/xyz-file"
+database_file = "path/to/db-file"
+
+# Run query
+inchikey, results = query_pubchem_database(xyz_file, database_file)
+
+# Display results
+print(f"InChIKey: {inchikey}")
+print("Results:")
+for row in results:
+    print(row)
+
+```
+
+### Components
+
+**Query System:**
+    Uses query.py to extract InChIKey from molecular structures.
+    Supports both XYZ files and ase.Atoms objects.
+    Queries the local SQLite database for matching records.
+
+**Database Management**
+Uses database.py to store molecular fingerprints.
+Supports SMILES, InChI, and InChIKey.
+Provides fast retrieval using an indexed InChIKey column.
+
+**PubChem Data Processing**
+    Uses pubchem.py to download, extract, and process large PubChem datasets.
+    Parses .sdf files to extract relevant molecular identifiers.
+
+## Development & Testing
+
+To run tests:
+pytest tests/
 
 ## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This project is licensed under the MIT License. See LICENSE for details.
