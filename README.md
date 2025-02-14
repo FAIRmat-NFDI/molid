@@ -3,33 +3,34 @@
 This repository contains a molecular identification pipeline for processing PubChem data, extracting chemical structures, and querying a local database using molecular fingerprints.
 
 ## Folder Structure
-- `molid/`
-  - `__init__.py` - Marks the folder as a package
-  - `pubchemproc/` - Contains PubChem processing functions
-    - `__init__.py`
-    - `pubchem.py` - Functions for downloading and processing PubChem data
-    - `file_handler.py` - File unpacking and validation
-    - `query.py` - Query database and CLI tool
-  - `db/` - Database-related functions
-    - `__init__.py`
-    - `database.py` - Database initialization and data storage
-    - `search.py` - Search functionality for molecular queries
-    - `db_manager.py` - Handles database creation and updates
-  - `utils/` - Shared utilities
-    - `__init__.py`
-    - `ftp_utils.py` - FTP-related functions for downloading PubChem data
-    - `disk_utils.py` - Disk space checks and cleanup
-    - `conversion.py` - Conversion of XYZ/Atoms to InChIKey
+molid/ # Main package directory
+├── init.py # Marks the folder as a package
+├── pubchemproc/ # Contains PubChem processing functions
+│ ├── init.py
+│ ├── pubchem.py # Functions for downloading and processing PubChem data
+│ ├── file_handler.py # File unpacking and validation
+│ └── query.py # Query database and CLI tool
+├── db/ # Database-related functions
+│ ├── init.py
+│ ├── database.py # Database initialization and data storage
+│ ├── search.py # Search functionality for molecular queries
+│ └── db_manager.py # Handles database creation and updates
+└── utils/ # Shared utilities
+├── init.py
+├── ftp_utils.py # FTP-related functions for downloading PubChem data
+├── disk_utils.py # Disk space checks and cleanup
+└── conversion.py # Conversion of XYZ/Atoms to InChIKey
 
 ### Other Files
-- `tests/` - Unit tests
-  - `test_pubchemproc.py` - Tests for PubChem processing functions
-  - `test_db.py` - Tests for database functions
-  - `test_utils.py` - Tests for utility functions
-- `setup.py` - Package metadata and installation script
-- `README.md` - Documentation for the package
-- `LICENSE` - License information
-- `requirements.txt` - Dependencies required to run the package
+tests/ # Unit tests
+├── test_pubchemproc.py # Tests for PubChem processing functions
+├── test_db.py # Tests for database functions
+└── test_utils.py # Tests for utility functions
+
+setup.py # Package metadata and installation script
+README.md # Documentation for the package
+LICENSE # License information
+requirements.txt # Dependencies required to run the package
 
 ---
 
