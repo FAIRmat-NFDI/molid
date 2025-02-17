@@ -56,8 +56,27 @@ requirements.txt # Dependencies required to run the package
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Then, install dependencies:
-pip install -r requirements.txt
+### Prerequisites
+Before installing the package, ensure you have:
+- A Linux system (tested on Ubuntu 20.04+)
+- Python 3.8 or later
+- Git installed
+
+### Automatic Installation (Recommended)
+To install all dependencies, Open Babel, and Python packages on Linux (Debian/Ubuntu), run:
+
+```sh
+./install_dependencies.sh
+```
+Some systems may require sudo privileges; in such cases, use the commented-out lines in
+the .sh file instead of the lines without sudo.
+
+For other OS, please determine how to convert the commands in the .sh file to those
+compatible with your system. OS-independent support may be provided in the future.
+
+### Manual Installation
+
+If you prefer manual installation, follow the steps in install_dependencies.sh manually.
 
 ### Usage
 

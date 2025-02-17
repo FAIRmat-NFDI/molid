@@ -1,3 +1,4 @@
 openbabel==3.1.1.1
 psutil==6.1.1
 pytest==8.3.4
+ase == 3.23.0

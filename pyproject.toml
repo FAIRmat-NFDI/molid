@@ -21,8 +21,12 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: OS Independent"
 ]
+
 dependencies = [
-    "psutil",
+    "ase == 3.24.0",
+    "openbabel == 3.1.1.1",
+    "psutil == 6.1.1",
+    "pytest"
 ]
 
 [project.scripts]
