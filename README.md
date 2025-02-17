@@ -67,6 +67,7 @@ To install all dependencies, Open Babel, and Python packages on Linux (Debian/Ub
 
 ```sh
 ./install_dependencies.sh
+pip install .
 ```
 Some systems may require sudo privileges; in such cases, use the commented-out lines in
 the .sh file instead of the lines without sudo.
