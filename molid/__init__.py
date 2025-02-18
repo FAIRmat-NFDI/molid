@@ -5,3 +5,4 @@ from .utils import disk_utils, ftp_utils
 from .pubchemproc.query import query_pubchem_database
 
 __all__ = ["db", "pubchemproc", "utils", "query_pubchem_database"]
+__version__ = "0.1.3"
