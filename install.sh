@@ -17,7 +17,6 @@ cd openbabel
 mkdir build && cd build
 cmake .. -DPYTHON_BINDINGS=ON -DPYTHON_EXECUTABLE=$(which python3) -DRUN_SWIG=ON
 make -j$(nproc)
-# sudo make install
 make install
 
 cd "$SCRIPT_DIR"
@@ -32,5 +31,6 @@ echo 'export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"' >> ~/.bashrc
 source ~/.bashrc
 ldconfig
 
+pip install .
 
 echo "Installation complete!"
