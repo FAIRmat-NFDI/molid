@@ -24,7 +24,6 @@ classifiers = [
 
 dependencies = [
     "ase>=1.1.7",
-    "openbabel",
     "psutil == 6.1.1",
     "pytest"
 ]
