@@ -5,7 +5,9 @@ def initialize_database(database_file, fields):
     conn = sqlite3.connect(database_file)
     cursor = conn.cursor()
     # Create compound data table
-    columns = ", ".join([f"{field} TEXT" for field in fields])
+    columns = ", ".join([
+    f"{field} TEXT" for field in fields if fields[field] is not None
+    ] + ["InChIKey14 TEXT"])
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS compound_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

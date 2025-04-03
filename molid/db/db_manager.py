@@ -18,7 +18,8 @@ def create_database(database_file):
         "SMILES": "PUBCHEM_SMILES",
         "InChIKey": "PUBCHEM_IUPAC_INCHIKEY",
         "InChI": "PUBCHEM_IUPAC_INCHI",
-        "Formula": "PUBCHEM_MOLECULAR_FORMULA"
+        "Formula": "PUBCHEM_MOLECULAR_FORMULA",
+        "InChIKey14": None
     }
     initialize_database(database_file, fields)
     print(f"[INFO] Database created: {database_file}")

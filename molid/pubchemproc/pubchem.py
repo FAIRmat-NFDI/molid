@@ -1,5 +1,4 @@
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from molid.pubchemproc.file_handler import validate_gz_file, unpack_gz_file
 from molid.pubchemproc.file_handler import cleanup_files
 
@@ -25,6 +24,8 @@ def process_file(file_path, fields_to_extract):
                     compound_data[key] = value
             elif line == "$$$$":
                 if compound_data:
+                    if "InChIKey" in compound_data:
+                        compound_data["InChIKey14"] = compound_data["InChIKey"][:14]
                     data.append(compound_data)
                 compound_data = {}
     return data
