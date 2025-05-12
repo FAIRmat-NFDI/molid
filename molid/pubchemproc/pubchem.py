@@ -1,7 +1,17 @@
+import logging
 from pathlib import Path
-from molid.pubchemproc.file_handler import validate_gz_file, unpack_gz_file
-from molid.pubchemproc.file_handler import cleanup_files
+from molid.pubchemproc.file_handler import (
+    validate_gz_file,
+    unpack_gz_file,
+    cleanup_files,
+    GzipValidationError,
+    FileUnpackError,
+)
 
+logger = logging.getLogger(__name__)
+
+
+# Fields used for processing SDF files (only a limited set)
 FIELDS_TO_EXTRACT = {
     "SMILES": "PUBCHEM_SMILES",
     "InChIKey": "PUBCHEM_IUPAC_INCHIKEY",
@@ -31,21 +41,24 @@ def process_file(file_path, fields_to_extract):
     return data
 
 def download_and_process_file(file_name, download_folder, processed_folder, fields_to_extract, process_callback):
-    """Download, unpack, process, and save a single file with tracking."""
+    """
+    Download, unpack, process, and save a single file with tracking.
+    """
     try:
         gz_path = Path(download_folder) / file_name
-        if not validate_gz_file(gz_path):
-            print(f"[ERROR] Validation failed for {file_name}")
-            return False
+        validate_gz_file(gz_path)
 
         sdf_file_path = unpack_gz_file(gz_path, processed_folder)
-        if not sdf_file_path:
-            return False
 
         extracted_data = process_file(sdf_file_path, fields_to_extract)
         process_callback(extracted_data)
+
         cleanup_files(gz_path, sdf_file_path)
+        logger.info("Successfully processed: %s", file_name)
         return True
+    except (GzipValidationError, FileUnpackError) as e:
+        logger.error("Processing failed for %s: %s", file_name, e)
+        return False
     except Exception as e:
-        print(f"[ERROR] Failed to process {file_name}: {e}")
+        logger.exception("Unexpected error while processing %s", file_name)
         return False

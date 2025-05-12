@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "molid"
-version = "0.1.3"
+version = "0.2.0"
 description = "A package for processing PubChem data and managing a database of chemical compounds."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.scripts]
-molid-query = "molid.pubchemproc.query:main"
+molid-query      = "molid.cli:main"
 molid-db-manager = "molid.db.db_manager:main"
 
 [tool.setuptools.packages.find]
