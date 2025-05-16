@@ -1,27 +1,32 @@
 import requests
 
-
 def fetch_molecule_data(
-    molecule_identifier: str,
-    identifier_type: str = "name"
+    id_type: str,
+    id_value: str,
+    properties: tuple = (
+        "Title", "IUPACName", "MolecularFormula", "InChI", "InChIKey",
+        "CanonicalSMILES", "IsomericSMILES", "XLogP", "ExactMass",
+        "MonoisotopicMass", "TPSA", "Complexity", "Charge"
+    ),
 ) -> dict:
     """
     Fetch molecule data from the PubChem API.
     Requests a set of standard properties including:
-      Title, IUPACName, MolecularFormula, InChI, InChIKey,
-      CanonicalSMILES, IsomericSMILES, PUBCHEM_COMPOUND_CID,
-      PUBCHEM_EXACT_MASS, PUBCHEM_MOLECULAR_WEIGHT,
-      PUBCHEM_SMILES, MonoisotopicMass.
+      cid, name, smiles, inchi, inchikey, formula, sourceid/cas
     """
-    base_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound"
-    properties = (
-        "Title,IUPACName,MolecularFormula,InChI,InChIKey,CanonicalSMILES,"
-        "IsomericSMILES,PUBCHEM_COMPOUND_CID,PUBCHEM_EXACT_MASS,"
-        "PUBCHEM_MOLECULAR_WEIGHT,PUBCHEM_SMILES,MonoisotopicMass"
-    )
-    it = identifier_type.lower()
-    url = f"{base_url}/{it}/{molecule_identifier}/property/{properties}/JSON"
+    ns = {
+        "cas": "xrefs/rn"
+    }.get(id_type, id_type)
 
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return response.json()
+    # Join and URL‐encode the property list
+    props_str = ",".join(properties)
+    url = (
+        f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
+        f"{ns}/{id_value}/property/{props_str}/JSON"
+    )
+
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+
+    data = resp.json().get("PropertyTable", {}).get("Properties", [])
+    return data[0] if data else {}

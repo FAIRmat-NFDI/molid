@@ -4,41 +4,19 @@ import os
 from pathlib import Path
 from ase import Atoms
 from ase.io import read
-from typing import Any, Dict, Tuple
+from typing import List, Any, Dict
 
 from molid.utils.conversion import atoms_to_inchikey
 from molid.search.service import SearchService, SearchConfig
 from molid.pubchemproc.pubchem import process_file, FIELDS_TO_EXTRACT
+from molid.utils.config_loader import load_config
 
-
-def _load_config(path: str) -> dict:
-    p = Path(path)
-    # 1) user‐supplied path?
-    if p.is_file():
-        cfg_path = p
-    else:
-        # 2) package‐root config.yaml?
-        pkg_root = Path(__file__).parent.parent  # .../MolID/molid
-        alt1 = pkg_root / "config.yaml"
-        # 3) project‐root config.yaml (one level above pkg_root)
-        alt2 = pkg_root.parent / "config.yaml"
-        if   alt1.is_file():
-            cfg_path = alt1
-        elif alt2.is_file():
-            cfg_path = alt2
-        else:
-            raise FileNotFoundError(
-                f"Config file not found at {p!s}, {alt1}, or {alt2}"
-            )
-
-    with open(cfg_path) as f:
-        return yaml.safe_load(f)
 
 def _create_search_service(config_path: str = "config.yaml") -> SearchService:
     """
     Instantiate a SearchService based on parameters in config.yaml.
     """
-    cfg = _load_config(config_path)
+    cfg = load_config(config_path)
     master_db = cfg.get("master_db")
     cache_db = cfg.get("cache_db")
     mode = cfg.get("mode", "offline-basic")
@@ -68,7 +46,8 @@ def search_from_atoms(
     Returns (result Dict, source).
     """
     inchikey = atoms_to_inchikey(atoms)
-    return search_identifier(inchikey, id_type="inchikey", config_path=config_path)
+    input = {"inchikey": inchikey}
+    return search_identifier(input, config_path=config_path)
 
 
 def search_from_file(
@@ -81,6 +60,7 @@ def search_from_file(
     - .sdf: extract InChIKey via process_file, then search
     Returns (result Dict, source).
     """
+    #TODO: Rework function. FIELDS_TO_EXTRACT is strange
     p = Path(file_path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {file_path}")

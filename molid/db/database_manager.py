@@ -1,0 +1,89 @@
+import sqlite3
+import logging
+from pathlib import Path
+from typing import List, Any, Dict
+
+logger = logging.getLogger(__name__)
+
+class DatabaseManager:
+    """
+    Generic SQLite helper for schema initialization,
+    simple inserts, and custom queries.
+    """
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        # ensure directory exists
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def initialize(self, sql_script: str) -> None:
+        """Create or migrate the database schema."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.executescript(sql_script)
+            logger.info("Initialized database schema at %s", self.db_path)
+        except sqlite3.Error as e:
+            logger.error("Failed to initialize %s: %s", self.db_path, e)
+            raise
+
+    def insert_many(
+        self,
+        table: str,
+        columns: List[str],
+        rows: List[List[Any]],
+        ignore_conflicts: bool = True
+    ) -> None:
+        """
+        Insert multiple rows into `table` for the given `columns`.
+        If ignore_conflicts, will do INSERT OR IGNORE; otherwise plain INSERT.
+        """
+        if not rows:
+            logger.debug("No rows to insert into %s", table)
+            return
+
+        cols = ", ".join(columns)
+        placeholders = ", ".join("?" for _ in columns)
+        verb = "INSERT OR IGNORE" if ignore_conflicts else "INSERT"
+        sql = f"{verb} INTO {table} ({cols}) VALUES ({placeholders})"
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.executemany(sql, rows)
+                conn.commit()
+            logger.info("Inserted %d rows into %s", len(rows), table)
+        except sqlite3.Error as e:
+            logger.error("Failed to insert rows into %s: %s", table, e)
+            raise
+
+    def exists(
+        self,
+        table: str,
+        where_clause: str,
+        params: List[Any]
+    ) -> bool:
+        """Return True if a row exists matching the given WHERE clause."""
+        sql = f"SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1"
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cur = conn.execute(sql, params)
+                return cur.fetchone() is not None
+        except sqlite3.Error as e:
+            logger.error("Existence check failed on %s: %s", self.db_path, e)
+            return False
+
+    def query_one(self, sql: str, params: List[Any] = None) -> Dict[str, Any]:
+        """Return a single row as a dict, or None if not found."""
+        params = params or []
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(sql, params)
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    def query_all(self, sql: str, params: List[Any] = None) -> List[Dict[str, Any]]:
+        """Return all matching rows as a list of dicts."""
+        params = params or []
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(sql, params)
+            return [dict(r) for r in cur.fetchall()]

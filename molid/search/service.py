@@ -1,15 +1,17 @@
 import os
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Tuple
 
-from molid.pubchem_api.offline import basic_offline_search, advanced_offline_search
+from molid.search.db_lookup import basic_offline_search
 from molid.pubchem_api.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db
 from molid.pubchem_api.fetch import fetch_molecule_data
 from molid.utils.conversion import convert_to_inchikey
+from molid.search.db_lookup import advanced_search
 
 logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Custom exceptions
@@ -36,20 +38,6 @@ class SearchConfig:
     mode: str  # offline-basic | offline-advanced | online-only | online-cached
     cache_enabled: bool = False
 
-
-# ---------------------------------------------------------------------------
-# Helper that normalises *any* caller input
-# ---------------------------------------------------------------------------
-
-def _coerce_filters(
-    raw: Union[str, Dict[str, str]], = "inchikey",
-) -> Dict[str, str]:
-    if isinstance(raw, dict):
-        return raw                     # already OK
-    if "=" in raw:                     # filter string
-        return {k: v for k, v in (p.split("=", 1) for p in raw.split(","))}
-
-    return {id_type.capitalize(): raw}
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +87,11 @@ class SearchService:
         """Resolve input according to the configured mode.
         """
         logger.debug("Search request: id=%s (type=%s) via %s", input, self.cfg.mode)
-        return self._dispatch[self.cfg.mode](input)
+        if len(input) > 1:
+            raise ValueError(f'Too many search parameter. Expected 1, given {len(input)}.')
+        input_lower_case = {k.lower(): v for k, v in input.items()}
+
+        return self._dispatch[self.cfg.mode](input_lower_case)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -117,80 +109,57 @@ class SearchService:
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
-    def _unify_input_offline_basic(input):
-        id_type = list(input.keys())[0].lower()
-        identifier = list(input.values())[0]
+    def _preprocess_input(self, input, mode):
+        if mode == 'basic':
+            id_types = ("inchikey", "inchi", "smiles")
+        elif mode == 'advanced':
+            id_types = ('cid', 'name', 'smiles', 'inchi', 'inchikey', 'formula', 'sourceid/cas')
 
-        if id_type not in ("inchikey", "inchi", "smiles"):
+        id_type = list(input.keys())[0]
+        id_value = list(input.values())[0]
+
+        if id_type not in id_types:
             raise ValueError(
-                "offline-basic only supports input of 'InChIkey', InChI or Smiles (not case sensitive); "
+                f"search mode {mode} only supports input of {id_types} (not case sensitive); "
                 f"received {id_type!r}."
             )
-        if id_type != "inchikey":
-            inchikey = convert_to_inchikey(identifier, id_type)
-        else:
-            inchikey = input
-        return inchikey
 
-    def _unify_input_offline_advanced(input):
-        input_upper_case = {k.upper(): v for k, v in input.items()}
+        if id_type in ("inchi", "smiles"):
+            inchikey = convert_to_inchikey(id_value, id_type)
+            return "inchikey", inchikey
 
-        if id_type not in ("inchikey", "inchi", "smiles"):
-            raise ValueError(
-                "offline-basic only supports input of 'InChIkey', InChI or Smiles (not case sensitive); "
-                f"received {id_type!r}."
-            )
-        if id_type != "inchikey":
-            inchikey = convert_to_inchikey(identifier, id_type)
-        else:
-            inchikey = input
-        return inchikey
+        return id_type, id_value
+
 
     # ------------------------------------------------------------------
     # Mode‑specific implementations
     # ------------------------------------------------------------------
 
     def _search_offline_basic(self, input):
-        inchikey = self._unify_input_offline_basic(input)
-        record = basic_offline_search(self.master_db, inchikey)
+        __, id_value = self._preprocess_input(input, 'basic')
+        record = basic_offline_search(self.master_db, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
         return record, "offline-basic"
 
     def _search_offline_advanced(self, input):
-        results = advanced_offline_search(self.cache_db, identifiers)
+        id_type, id_value = self._preprocess_input(input, 'advanced')
+        results = advanced_search(self.cache_db, id_type, id_value, table='compound_data')
         if not results:
             raise MoleculeNotFound(
-                "No compounds matched filters: "
-                + ", ".join(f"{k}={v}" for k, v in filters.items())
+                "No compounds matched identifier: "
+                + ", ".join(f"{k}={v}" for k, v in input.items())
             )
         return results, "offline-advanced"
 
     def _search_online_only(self, input):
-        data = fetch_molecule_data(input, id_type)
-        props = data.get("PropertyTable", {}).get("Properties", [])
-        if not props:
-            raise MoleculeNotFound(f"No PubChem results for {input!s}.")
-        return props[0], "api"
+        id_type, id_value = self._preprocess_input(input, 'advanced')
+        data = fetch_molecule_data(id_type, id_value)
+        if not data:
+            raise MoleculeNotFound(f"No PubChem results for {id_type, id_value}.")
+        return data, "api"
 
     def _search_online_cached(self, input):
-        rec, from_cache = get_cached_or_fetch(self.cache_db, input, id_type)
+        id_type, id_value = self._preprocess_input(input, 'advanced')
+        rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
         return rec, "user-cache" if from_cache else "api"
-
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _parse_filters(input) -> Dict[str, str]:
-        """Convert a comma‑separated filter string into a dict."""
-         # e.g. input="Formula=C6H6,SMILES=c1ccccc1"
-        filters: Dict[str, str] = {}
-        for part in input.split(","):
-            if "=" not in part:
-                raise ValueError(f"Invalid filter expression: {part!r}")
-            key, value = part.split("=", 1)
-            if not key or not value:
-                raise ValueError(f"Malformed filter segment: {part!r}")
-            filters[key] = value
-        return filters

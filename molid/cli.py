@@ -4,21 +4,7 @@ import sys
 
 from molid.db.db_manager import update_database
 from molid.search.service import SearchService, SearchConfig
-
-
-def load_config(path: str = "config.yaml") -> dict:
-    """
-    Load the YAML configuration file.
-    """
-    try:
-        with open(path, 'r') as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        print(f"[ERROR] Configuration file not found: {path}")
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"[ERROR] Failed to parse YAML: {e}")
-        sys.exit(1)
+from molid.utils.config_loader import load_config
 
 
 def main():
@@ -76,7 +62,7 @@ def main():
             cfg=search_cfg,
         )
         try:
-            result, source = service.search(args.identifier, args.id_type)
+            result, source = service.search({args.id_type: args.identifier})
             print(f"[Source] {source}\n")
             # Pretty-print the result dict
             import json

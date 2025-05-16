@@ -20,10 +20,11 @@ def run(data, config_path: str = "config.yaml") -> (dict, str):
 
     Parameters
     ----------
-    data : ASE Atoms | str | Path
+    data : ASE Atoms | str | Path | dict
         - ASE Atoms object
         - Path to a .xyz/.extxyz/.sdf file
         - Raw XYZ content as string
+        - dict of identifier and identifier type (example {"SMILES": "c1ccccc1"})
     config_path : str
         Path to MolID config.yaml
 
