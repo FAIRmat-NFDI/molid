@@ -9,18 +9,19 @@ from typing import List, Any, Dict
 from molid.utils.conversion import atoms_to_inchikey
 from molid.search.service import SearchService, SearchConfig
 from molid.pubchemproc.pubchem import process_file, FIELDS_TO_EXTRACT
-from molid.utils.config_loader import load_config
+from molid.utils.config_loader import load_config, AppConfig
 
 
 def _create_search_service(config_path: str = "config.yaml") -> SearchService:
     """
     Instantiate a SearchService based on parameters in config.yaml.
     """
-    cfg = load_config(config_path)
-    master_db = cfg.get("master_db")
-    cache_db = cfg.get("cache_db")
-    mode = cfg.get("mode", "offline-basic")
-    cache_enabled = cfg.get("cache_enabled", False)
+    cfg: AppConfig = load_config(config_path)
+    master_db     = cfg.master_db
+    cache_db      = cfg.cache_db
+    mode          = cfg.mode
+    cache_enabled = cfg.cache_enabled
+
     _sanity_check(master_db, cache_db, mode)
     search_cfg = SearchConfig(mode=mode, cache_enabled=cache_enabled)
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
@@ -73,7 +74,7 @@ def search_from_file(
         if not records or 'InChIKey' not in records[0]:
             raise ValueError(f"No InChIKey found in SDF: {file_path}")
         inchikey = records[0]['InChIKey']
-        return search_identifier(inchikey, id_type="inchikey", config_path=config_path)
+        return search_identifier(inchikey, config_path=config_path)
     raise ValueError(f"Unsupported file extension: {ext}")
 
 

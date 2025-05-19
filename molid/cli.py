@@ -2,18 +2,20 @@ import argparse
 import yaml
 import sys
 
-from molid.db.db_manager import update_database
+from molid.db.offline_db_cli import update_database
 from molid.search.service import SearchService, SearchConfig
-from molid.utils.config_loader import load_config
+from molid.utils.config_loader import AppConfig, load_config
 
 
 def main():
     # Load configuration
-    cfg_dict = load_config()
-    master_db = cfg_dict.get("master_db")
-    cache_db = cfg_dict.get("cache_db")
-    mode = cfg_dict.get("mode", "offline-basic")
-    cache_enabled = cfg_dict.get("cache_enabled", False)
+    cfg: AppConfig = load_config()
+
+    # Pull CLI-relevant pieces
+    master_db    = cfg.master_db
+    cache_db     = cfg.cache_db
+    mode         = cfg.mode
+    cache_enabled= cfg.cache_enabled
 
     # Build SearchConfig
     search_cfg = SearchConfig(mode=mode, cache_enabled=cache_enabled)

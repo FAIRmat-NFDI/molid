@@ -10,6 +10,31 @@ logger = logging.getLogger(__name__)
 CACHE_TABLE = 'cached_molecules'
 OFFLINE_TABLE_MASTER = 'compound_data'
 
+_OFFLINE_FIELDS: Dict[str, str] = {
+    'inchikey': 'InChIKey',
+    'inchikey14': 'InChIKey14',
+    'inchi': 'InChI',
+    'smiles': 'SMILES',
+    'formula': 'Formula',
+}
+
+_CACHE_FIELDS: Dict[str, str] = {
+    'cid': 'CID',
+    'inchikey': 'InChIKey',
+    'inchikey14': 'InChIKey14',
+    'molecularformula': 'MolecularFormula',
+    'inchi': 'InChI',
+    'tpsa': 'TPSA',
+    'charge': 'Charge',
+    'canonicalsmiLES': 'CanonicalSMILES',
+    'isomericsmiles': 'IsomericSMILES',
+    'title': 'Title',
+    'iupacname': 'IUPACName',
+    'xlogp': 'XLogP',
+    'exactmass': 'ExactMass',
+    'complexity': 'Complexity',
+    'monoisotopicmass': 'MonoisotopicMass',
+}
 
 def basic_offline_search(
     offline_db_file: str,
@@ -51,8 +76,17 @@ def advanced_search(
         logger.debug("DB file %s does not exist", db_file)
         return []
 
+    if table == OFFLINE_TABLE_MASTER:
+        fields_map = _OFFLINE_FIELDS
+    elif table == CACHE_TABLE:
+        fields_map = _CACHE_FIELDS
+    else:
+        raise ValueError(f"Unknown table '{table}' for advanced_search")
+
+    column = fields_map.get(id_type.lower())
+    if not column:
+        raise ValueError(f"Unsupported search field '{id_type}' for table '{table}'")
+
     mgr = DatabaseManager(db_file)
-    return mgr.query_all(
-        f"SELECT * FROM {table} WHERE {id_type} = ?",
-        [id_value]
-    )
+    sql = f"SELECT * FROM {table} WHERE {column} = ?"
+    return mgr.query_all(sql, [id_value])
