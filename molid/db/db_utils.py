@@ -1,6 +1,6 @@
 import logging
 from typing import List, Dict, Any
-from molid.db.database_manager import DatabaseManager
+from molid.db.sqlite_manager import DatabaseManager
 from molid.db.schema import OFFLINE_SCHEMA, CACHE_SCHEMA
 
 logger = logging.getLogger(__name__)

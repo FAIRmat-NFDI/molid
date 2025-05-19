@@ -1,6 +1,6 @@
 import logging
 from typing import Tuple, Dict, Any
-from molid.db.database_manager import DatabaseManager
+from molid.db.sqlite_manager import DatabaseManager
 from molid.search.db_lookup import advanced_search
 from molid.db.db_utils import insert_dict_records
 

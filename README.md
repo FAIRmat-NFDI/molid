@@ -33,32 +33,34 @@ MolID is a command-line tool and Python package for downloading, processing, and
 
 ```
 .
-├── cli.py                   # Entry-point for update & search CLI
-├── run.py                   # Single `run(data, config_path)` API
-├── config.yaml              # Default configuration template
-├── molid/                   # Main Python package
-│   ├── db/                  # Offline & cache database modules
-│   │   ├── db_manager.py    # Create/update master SQLite DB & CLI “create/update/use” entrypoints
-│   │   ├── schema.py        # SQL schema for offline & cache DBs
-│   │   └── db_utils.py      # Schema init & record insertion (offline + cache)
-│   ├── pubchem_api/         # PubChem REST API client & cache lookup
-│   │   ├── cache.py         # API response caching logic
-│   │   ├── fetch.py         # PubChem PUG REST API client
-│   │   └── offline.py       # Offline InChIKey / InChIKey14 lookup from master DB
-│   ├── pubchemproc/         # PubChem SDF download & processing
-│   │   ├── file_handler.py  # Gzip validation, unpack, cleanup
-│   │   └── pubchem.py       # Process SDF → property dicts
-│   ├── utils/               # Miscellaneous utility modules
-│   │   ├── conversion.py    # XYZ/ASE → InChIKey via OpenBabel
-│   │   ├── disk_utils.py    # Disk-space checks
-│   │   └── ftp_utils.py     # FTP listing & resume-capable download
-│   ├── search/              # Core search logic
-│   │   ├── db_lookup.py     # Master-DB InChIKey lookup helper
-│   │   └── service.py       # SearchService implements all modes (offline/online/cached)
-│   └── pipeline.py          # High-level functions: search_identifier, search_from_*
-├── requirements.txt         # Python dependencies
-├── README.md                # Project documentation
-└── LICENSE                  # MIT license
+├── molid/                        # Main Python package
+│   ├── db/                       # Offline & cache database modules
+│   │   ├── master_db_manager.py  # Create/update master SQLite DB & CLI “create/update/use” entrypoints
+│   │   ├── sqlite_manager.py     # Create and manage cache SQLite
+│   │   ├── schema.py             # SQL schema for offline & cache DBs
+│   │   └── db_utils.py           # Schema init & record insertion (offline + cache)
+│   ├── pubchem_api/              # PubChem REST API client & cache lookup
+│   │   ├── cache.py              # API response caching logic
+│   │   ├── fetch.py              # PubChem PUG REST API client
+│   │   └── offline.py            # Offline InChIKey / InChIKey14 lookup from master DB
+│   ├── processing                # PubChem SDF download & processing
+│   │   ├── file_handler.py       # Gzip validation, unpack, cleanup
+│   │   └── pubchem.py            # Process SDF → property dicts
+│   ├── utils/                    # Miscellaneous utility modules
+│   │   ├── conversion.py         # XYZ/ASE → InChIKey via OpenBabel
+│   │   ├── disk_utils.py         # Disk-space checks
+│   │   ├── config_loader.py      # Loads config yaml
+│   │   └── ftp_utils.py          # FTP listing & resume-capable download
+│   ├── search/                   # Core search logic
+│   │   ├── db_lookup.py          # Master-DB InChIKey lookup helper
+│   │   └── service.py            # SearchService implements all modes (offline/online/cached)
+│   ├── cli.py                    # Entry-point for update & search CLI
+│   ├── run.py                    # Single `run(data, config_path)` API
+│   ├── config.yaml               # Default configuration template
+│   └── pipeline.py               # High-level functions: search_identifier, search_from_*
+├── requirements.txt              # Python dependencies
+├── README.md                     # Project documentation
+└── LICENSE                       # MIT license
 
 tests/                     # Unit tests
 ├── test_pubchemproc.py    # PubChem processing tests

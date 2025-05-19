@@ -3,7 +3,7 @@
 import os
 import logging
 from typing import Dict, Any, List, Optional
-from molid.db.database_manager import DatabaseManager
+from molid.db.sqlite_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
