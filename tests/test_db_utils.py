@@ -1,6 +1,6 @@
 import sqlite3
 import pytest
-from molid.db import db_utils  # :contentReference[oaicite:4]{index=4}:contentReference[oaicite:5]{index=5}
+from molid.db import db_utils
 
 def test_create_offline_and_cache_dbs(tmp_path):
     off = tmp_path/"off.db"

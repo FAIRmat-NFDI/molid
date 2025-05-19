@@ -1,6 +1,6 @@
 import sqlite3
 import pytest
-from molid.db.sqlite_manager import DatabaseManager  # :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+from molid.db.sqlite_manager import DatabaseManager
 
 def test_initialize_and_query(tmp_path):
     db_file = tmp_path / "db.sqlite"
