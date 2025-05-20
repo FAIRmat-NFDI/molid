@@ -1,10 +1,8 @@
-import yaml
 import io
 import os
 from pathlib import Path
 from ase import Atoms
 from ase.io import read
-from typing import List, Any, Dict
 
 from molid.utils.conversion import atoms_to_inchikey
 from molid.search.service import SearchService, SearchConfig

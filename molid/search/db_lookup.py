@@ -1,5 +1,3 @@
-# molid/search/db_lookup.py
-
 import os
 import logging
 from typing import Dict, Any, List, Optional
