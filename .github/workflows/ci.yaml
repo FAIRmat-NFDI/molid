@@ -46,6 +46,8 @@ jobs:
         - name: Install package and dependencies
           run: pip install -e .
                pip install -r requirements.txt
+          working-directory: ${{ github.workspace }}
 
         - name: Run tests
-          run: pytest
+          run: PYTHONPATH=. pytest
+          working-directory: ${{ github.workspace }}
