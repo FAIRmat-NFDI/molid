@@ -50,5 +50,6 @@ jobs:
 
         - name: Run tests
           run: |
-            cd ..
-            PYTHONPATH=. pytest
+            echo "Current dir: $(pwd)"
+            echo "PYTHONPATH=$GITHUB_WORKSPACE"
+            PYTHONPATH=$GITHUB_WORKSPACE pytest
