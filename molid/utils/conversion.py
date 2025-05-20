@@ -1,6 +1,4 @@
-from ase import Atoms
 from ase.io import write
-import os
 import io
 import contextlib
 from io import StringIO
@@ -18,10 +16,6 @@ def convert_xyz_to_inchikey(xyz_content):
     # Read the XYZ content into the molecule.
     if not ob_conversion.ReadString(ob_mol, xyz_content):
         raise ValueError("Failed to parse XYZ content with OpenBabel.")
-
-    # Convert the molecule to InChI.
-    with contextlib.redirect_stderr(io.StringIO()):
-        inchi = ob_conversion.WriteString(ob_mol).strip()
 
     # Change the conversion format for InChI to InChIKey.
     if not ob_conversion.SetInAndOutFormats("inchi", "inchikey"):

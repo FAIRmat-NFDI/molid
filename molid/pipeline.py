@@ -28,7 +28,7 @@ def _create_search_service(config_path: str = "config.yaml") -> SearchService:
 def search_identifier(
     input,
     config_path: str = "config.yaml"
-) -> (Dict, str):
+):
     """
     Universal search for any identifier type (InChIKey, SMILES, name, etc.)
     using the mode defined in config.yaml. Returns (result Dict, source).
@@ -39,7 +39,7 @@ def search_identifier(
 def search_from_atoms(
     atoms: Atoms,
     config_path: str = "config.yaml"
-) -> (Dict, str):
+):
     """
     Search using an ASE Atoms object. Computes its InChIKey, then delegates.
     Returns (result Dict, source).
@@ -52,7 +52,7 @@ def search_from_atoms(
 def search_from_file(
     file_path: str,
     config_path: str = "config.yaml"
-) -> (Dict, str):
+):
     """
     Detect file extension from path and process accordingly:
     - .xyz, .extxyz: read via ASE, then search
@@ -79,7 +79,7 @@ def search_from_file(
 def search_from_input(
     data,
     config_path: str = "config.yaml"
-) -> (Dict, str):
+):
     """
     Universal entrypoint: accepts one of:
       • ASE Atoms

@@ -1,5 +1,4 @@
 import argparse
-import yaml
 import sys
 
 from molid.db.offline_db_cli import update_database

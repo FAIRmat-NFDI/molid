@@ -1,5 +1,3 @@
-import sqlite3
-import pytest
 from molid.db.sqlite_manager import DatabaseManager
 
 def test_initialize_and_query(tmp_path):

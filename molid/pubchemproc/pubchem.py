@@ -60,5 +60,5 @@ def download_and_process_file(file_name, download_folder, processed_folder, fiel
         logger.error("Processing failed for %s: %s", file_name, e)
         return False
     except Exception as e:
-        logger.exception("Unexpected error while processing %s", file_name)
+        logger.exception("Unexpected error while processing %s: %s", file_name, e)
         return False
