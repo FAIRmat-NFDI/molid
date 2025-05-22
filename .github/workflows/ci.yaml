@@ -52,6 +52,8 @@ jobs:
             python -m pip install --upgrade pip
             pip install -e .
             pip install -r requirements.txt
+        - run: ls -R venv_molid/lib/python3.* | sed -e 's/$/\\/site-packages\\/' -e 's/^/→ /'
+
 
         - name: Run tests
           run: |
