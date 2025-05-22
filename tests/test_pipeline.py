@@ -6,7 +6,6 @@ from molid.pipeline import (
     search_from_input
 )
 from ase.build import molecule
-from pathlib import Path
 
 @pytest.fixture
 def test_config(tmp_path):
