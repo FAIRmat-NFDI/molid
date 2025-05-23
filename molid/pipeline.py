@@ -108,9 +108,11 @@ def search_from_input(
         try:
             atoms = read(io.StringIO(data), format='xyz')
             return search_from_atoms(atoms, config_path)
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
-
+    return search_from_atoms(atoms, config_path)
+    import pdb; pdb.set_trace()
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
 
 def _sanity_check(master_db, cache_db, mode):

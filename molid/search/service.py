@@ -144,7 +144,7 @@ class SearchService:
 
     def _search_offline_advanced(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')
-        results = advanced_search(self.cache_db, id_type, id_value, table='compound_data')
+        results = advanced_search(self.cache_db, id_type, id_value)
         if not results:
             raise MoleculeNotFound(
                 "No compounds matched identifier: "

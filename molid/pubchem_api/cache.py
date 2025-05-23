@@ -29,7 +29,7 @@ def store_cached_data(
 
     logger.info("Cached data for %s (%s)", id_type, id_value)
 
-    cached = advanced_search(cache_db_file, id_type, id_value, table=CACHE_TABLE)
+    cached = advanced_search(cache_db_file, id_type, id_value)
     if not cached:
         logger.warning(
             "Failed to retrieve just-stored cache record for %s (%s)",
@@ -48,7 +48,7 @@ def get_cached_or_fetch(
     and stores it.
     Returns (record, from_cache).
     """
-    cached = advanced_search(cache_db_file, id_type, id_value, table=CACHE_TABLE)
+    cached = advanced_search(cache_db_file, id_type, id_value)
     if cached:
         return cached, True
 
