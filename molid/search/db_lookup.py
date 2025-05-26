@@ -52,6 +52,8 @@ def basic_offline_search(
         [id_value]
     )
     if result:
+        if type(result) == list:
+            return result[0]
         return result
 
     # Fallback to InChIKey14 prefix match
@@ -80,4 +82,8 @@ def advanced_search(
 
     mgr = DatabaseManager(db_file)
     sql = f"SELECT * FROM {CACHE_TABLE} WHERE {column} = ?"
-    return mgr.query_all(sql, [id_value])
+    result = mgr.query_all(sql, [id_value])
+    if result:
+        filtered = {k: v for k, v in result[0].items() if v is not None}
+        return filtered
+    return None

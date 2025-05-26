@@ -50,9 +50,13 @@ def get_cached_or_fetch(
     """
     cached = advanced_search(cache_db_file, id_type, id_value)
     if cached:
+        if type(cached) == list:
+            return cached[0], True
         return cached, True
 
     from molid.pubchem_api.fetch import fetch_molecule_data
     api_data = fetch_molecule_data(id_type, id_value)
     stored = store_cached_data(cache_db_file, id_type, id_value, api_data)
+    if type(stored) == list:
+        return stored[0], False
     return stored, False

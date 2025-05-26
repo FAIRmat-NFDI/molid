@@ -18,10 +18,9 @@ def _create_search_service(config_path: str = "config.yaml") -> SearchService:
     master_db     = cfg.master_db
     cache_db      = cfg.cache_db
     mode          = cfg.mode
-    cache_enabled = cfg.cache_enabled
 
     _sanity_check(master_db, cache_db, mode)
-    search_cfg = SearchConfig(mode=mode, cache_enabled=cache_enabled)
+    search_cfg = SearchConfig(mode=mode)
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
 
 
