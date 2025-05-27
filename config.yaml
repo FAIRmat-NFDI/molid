@@ -7,6 +7,3 @@ cache_db:  "../pubchem_cache.db"
 # One of: offline-basic | offline-advanced | online-only | online-cached
 mode: "online-only"
 
-# cache_enabled toggles writes to the cache in online-cached mode
-cache_enabled: true
-
