@@ -30,7 +30,7 @@ def search_identifier(
 ):
     """
     Universal search for any identifier type (InChIKey, SMILES, name, etc.)
-    using the mode defined in config.yaml. Returns (result Dict, source).
+    using the mode defined in config.yaml. Returns (list of result dicts, source).
     """
     service = _create_search_service(config_path)
     return service.search(input)
@@ -41,7 +41,7 @@ def search_from_atoms(
 ):
     """
     Search using an ASE Atoms object. Computes its InChIKey, then delegates.
-    Returns (result Dict, source).
+    Returns (list of result dicts, source).
     """
     inchikey = atoms_to_inchikey(atoms)
     input = {"inchikey": inchikey}
@@ -56,7 +56,7 @@ def search_from_file(
     Detect file extension from path and process accordingly:
     - .xyz, .extxyz: read via ASE, then search
     - .sdf: extract InChIKey via process_file, then search
-    Returns (result Dict, source).
+    Returns (list of result dicts, source).
     """
     #TODO: Rework function. FIELDS_TO_EXTRACT is strange
     p = Path(file_path)
@@ -85,7 +85,7 @@ def search_from_input(
       • file path (xyz/extxyz/sdf)
       • raw XYZ file content (str)
     Detects type automatically and delegates to the right handler.
-    Returns (result Dict, source).
+    Returns (list of result dicts, source).
     """
     # Identifier
     if isinstance(data, dict):
