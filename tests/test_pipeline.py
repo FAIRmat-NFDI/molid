@@ -99,13 +99,14 @@ def test_search_identifier(test_config, expected_result, expected_sources):
     results = []
     sources = []
     for _ in range(2):
-        result, source = search_identifier({"SMILES": "C(=O)=O"}, config_path=test_config)
+        results, source = search_identifier({"SMILES": "C(=O)=O"}, config_path=test_config)
+        assert len(results) == 1
+        result = results[0]
         # Remove nondeterministic fields
         result.pop("fetched_at", None)
         result.pop("id", None)
         results.append(result)
         sources.append(source)
-
     # Each call should return the same result
     assert results == [expected_result, expected_result]
     # Sources sequence should match expected caching behavior
@@ -115,7 +116,7 @@ def test_search_identifier(test_config, expected_result, expected_sources):
 def test_search_from_atoms(test_config):
     atoms = molecule("CH4")
     result, source = search_from_atoms(atoms, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
@@ -123,7 +124,7 @@ def test_search_from_file_xyz(tmp_path, test_config):
     xyz_file = tmp_path / "test.xyz"
     xyz_file.write_text("""5\nMethane\nC 0.000 0.000 0.000\nH 0.629 0.629 0.629\nH -0.629 -0.629 0.629\nH -0.629 0.629 -0.629\nH 0.629 -0.629 -0.629\n""")
     result, source = search_from_file(str(xyz_file), config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
@@ -136,14 +137,14 @@ def test_search_from_file_invalid_extension(tmp_path, test_config):
 
 def test_search_from_input_dict(test_config):
     result, source = search_from_input({"SMILES": "C"}, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
 def test_search_from_input_raw_xyz(test_config):
     xyz = """3\nwater\nO      0.00000      0.00000      0.00000\nH      0.75700      0.58600      0.00000\nH     -0.75700      0.58600      0.00000\n"""
     result, source = search_from_input(xyz, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 

@@ -1,7 +1,7 @@
 import os
 import logging
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Tuple, List, Dict
 
 from molid.search.db_lookup import basic_offline_search
 from molid.pubchem_api.cache import get_cached_or_fetch
@@ -82,7 +82,7 @@ class SearchService:
     # Public API
     # ---------------------------------------------------------------------
 
-    def search(self, input) -> Tuple[Any, str]:
+    def search(self, input) -> Tuple[List[Dict[str, Any]], str]:
         """Resolve input according to the configured mode.
         """
         logger.debug("Search request: id=%s (type=%s) via %s", input, self.cfg.mode)

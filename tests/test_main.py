@@ -17,20 +17,20 @@ def test_config(tmp_path):
 def test_run_from_atoms(test_config):
     atoms = molecule("H2O")
     result, source = run(atoms, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
 def test_run_from_identifier_dict(test_config):
     result, source = run({"SMILES": "c1ccccc1"}, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
 def test_run_from_raw_xyz(test_config):
     xyz = """3\nwater\nO      0.00000      0.00000      0.00000\nH      0.75700      0.58600      0.00000\nH     -0.75700      0.58600      0.00000\n"""
     result, source = run(xyz, config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 
@@ -38,7 +38,7 @@ def test_run_from_path_xyz(tmp_path, test_config):
     xyz_file = tmp_path / "molecule.xyz"
     xyz_file.write_text("""3\nwater\nO      0.00000      0.00000      0.00000\nH      0.75700      0.58600      0.00000\nH     -0.75700      0.58600      0.00000\n""")
     result, source = run(str(xyz_file), config_path=test_config)
-    assert isinstance(result, dict)
+    assert isinstance(result, list)
     assert isinstance(source, str)
 
 

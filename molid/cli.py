@@ -65,7 +65,7 @@ def main():
         try:
             result, source = service.search({args.id_type: args.identifier})
             print(f"[Source] {source}\n")
-            # Pretty-print the result dict
+            # Pretty-print the result list
             import json
             print(json.dumps(result, indent=2))
         except Exception as e:

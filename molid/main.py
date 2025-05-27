@@ -24,7 +24,7 @@ def run(data, config_path: str = "config.yaml") -> (dict, str):
 
     Returns
     -------
-    result : dict
+    result : list of dict
         Dictionary of molecular properties from PubChem or offline DB.
     source : str
         Indicates where the data came from (e.g. 'offline-basic', 'api', 'user-cache').
