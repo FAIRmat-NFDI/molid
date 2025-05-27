@@ -1,7 +1,7 @@
 import os
 import logging
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Tuple, List, Dict
 
 from molid.search.db_lookup import basic_offline_search
 from molid.pubchem_api.cache import get_cached_or_fetch
@@ -36,7 +36,6 @@ class SearchConfig:
     """User‑supplied runtime configuration for a :class:`SearchService` instance."""
 
     mode: str  # offline-basic | offline-advanced | online-only | online-cached
-    cache_enabled: bool = False
 
 
 
@@ -65,7 +64,7 @@ class SearchService:
         self._ensure_required_files()
 
         # Make sure the cache schema exists *before* we might write to it.
-        if self.cfg.mode == "online-cached" and self.cfg.cache_enabled:
+        if self.cfg.mode == "online-cached":
             create_cache_db(self.cache_db)
 
         # Dispatch table keeps :py:meth:`search` straightforward.
@@ -83,7 +82,7 @@ class SearchService:
     # Public API
     # ---------------------------------------------------------------------
 
-    def search(self, input) -> Tuple[Any, str]:
+    def search(self, input) -> Tuple[List[Dict[str, Any]], str]:
         """Resolve input according to the configured mode.
         """
         logger.debug("Search request: id=%s (type=%s) via %s", input, self.cfg.mode)
@@ -105,7 +104,7 @@ class SearchService:
             )
 
         # Cache DB presence is optional until we *write* to it.
-        if self.cfg.mode == "online-cached" and self.cfg.cache_enabled:
+        if self.cfg.mode == "online-cached":
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
@@ -140,17 +139,17 @@ class SearchService:
         record = basic_offline_search(self.master_db, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
-        return record, "offline-basic"
+        return record, "master-cache"
 
     def _search_offline_advanced(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')
-        results = advanced_search(self.cache_db, id_type, id_value, table='compound_data')
+        results = advanced_search(self.cache_db, id_type, id_value)
         if not results:
             raise MoleculeNotFound(
                 "No compounds matched identifier: "
                 + ", ".join(f"{k}={v}" for k, v in input.items())
             )
-        return results, "offline-advanced"
+        return results, "user-cache"
 
     def _search_online_only(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')

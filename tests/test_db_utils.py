@@ -1,5 +1,4 @@
 import sqlite3
-import pytest
 from molid.db import db_utils
 
 def test_create_offline_and_cache_dbs(tmp_path):

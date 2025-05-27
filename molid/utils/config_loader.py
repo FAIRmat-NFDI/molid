@@ -22,9 +22,9 @@ def _load_raw(path: str = "config.yaml") -> Dict[str, Any]:
         alt1 = pkg_root / "config.yaml"
         alt2 = pkg_root.parent / "config.yaml"
         if alt1.is_file():
-            cfg_path = alt1
+            p = alt1
         elif alt2.is_file():
-            cfg_path = alt2
+            p = alt2
         else:
             raise FileNotFoundError(
                 f"Config file not found at {p!s}, {alt1}, or {alt2}"

@@ -3,7 +3,6 @@ import os
 import sys
 import traceback
 import logging
-logger = logging.getLogger(__name__)
 
 from molid.db.db_utils import (
     create_offline_db,
@@ -20,6 +19,8 @@ from molid.utils.ftp_utils import (
     get_total_files_from_ftp,
     download_file_with_resume,
 )
+
+logger = logging.getLogger(__name__)
 
 # Default directories and filenames
 DOWNLOAD_FOLDER = "downloads"
