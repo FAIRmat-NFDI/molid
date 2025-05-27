@@ -1,6 +1,5 @@
 import logging
-from typing import Tuple, Dict, Any
-from molid.db.sqlite_manager import DatabaseManager
+from typing import List, Dict, Any, Tuple
 from molid.search.db_lookup import advanced_search
 from molid.db.db_utils import insert_dict_records
 
@@ -12,25 +11,28 @@ def store_cached_data(
     cache_db_file: str,
     id_type: str,
     id_value: str,
-    api_data: dict
-) -> Dict[str, Any]:
+    api_data: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """
     Store the API response in the cache database.
     """
-    if not isinstance(api_data, dict):
-        logger.error("Unexpected API response format for %s (%s)", id_type, id_value)
-        raise ValueError("Unexpected API response format.")
+    if not isinstance(api_data, list) or not all(isinstance(item, dict) for item in api_data):
+        logger.error(
+            "Unexpected API response format for %s (%s): expected List[dict], got %r",
+            id_type, id_value, type(api_data)
+        )
+        raise ValueError("Unexpected API response format; expected a list of dicts.")
 
     insert_dict_records(
         db_file=cache_db_file,
         table=CACHE_TABLE,
-        records=[api_data],
+        records=api_data,
         ignore_conflicts=False
     )
 
-    logger.info("Cached data for %s (%s)", id_type, id_value)
+    logger.info("Cached %d records for %s (%s)", len(api_data), id_type, id_value)
 
-    cached = advanced_search(cache_db_file, id_type, id_value, table=CACHE_TABLE)
+    cached = advanced_search(cache_db_file, id_type, id_value)
     if not cached:
         logger.warning(
             "Failed to retrieve just-stored cache record for %s (%s)",
@@ -49,7 +51,7 @@ def get_cached_or_fetch(
     and stores it.
     Returns (record, from_cache).
     """
-    cached = advanced_search(cache_db_file, id_type, id_value, table=CACHE_TABLE)
+    cached = advanced_search(cache_db_file, id_type, id_value)
     if cached:
         return cached, True
 

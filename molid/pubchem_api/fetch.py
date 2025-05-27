@@ -29,4 +29,4 @@ def fetch_molecule_data(
     resp.raise_for_status()
 
     data = resp.json().get("PropertyTable", {}).get("Properties", [])
-    return data[0] if data else {}
+    return data if data else []
