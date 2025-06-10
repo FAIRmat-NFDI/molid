@@ -4,8 +4,6 @@ import io
 import contextlib
 from io import StringIO
 from openbabel import openbabel
-from ase.data.isotopes import parse_isotope_data
-from urllib.request import Request, urlopen
 
 # threshold for detecting isotopic masses (amu)
 MASS_TOLERANCE = 0.1
