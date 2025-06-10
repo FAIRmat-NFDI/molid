@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "molid"
-version = "0.3.0"
+version = "0.3.1"
 description = "A package for processing PubChem data and managing a database of chemical compounds."
 readme = "README.md"
 requires-python = ">=3.8"
