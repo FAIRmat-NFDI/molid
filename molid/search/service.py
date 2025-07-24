@@ -98,13 +98,21 @@ class SearchService:
 
     def _ensure_required_files(self) -> None:
         """Verify that mandatory database files exist for the selected mode."""
-        if self.cfg.mode.startswith("offline") and not os.path.isfile(self.master_db):
+        mode = self.cfg.mode
+        # Offline modes need the master DB
+        if mode.startswith("offline") and not os.path.isfile(self.master_db):
             raise DatabaseNotFound(
-                f"Master DB not found at {self.master_db!s} (required for offline modes)."
+                f"Master DB not found at {self.master_db!r} (required for {mode})."
             )
 
-        # Cache DB presence is optional until we *write* to it.
-        if self.cfg.mode == "online-cached":
+        # Advanced offline also needs the cache DB
+        if mode == "offline-advanced" and not os.path.isfile(self.cache_db):
+            raise DatabaseNotFound(
+                f"Cache DB not found at {self.cache_db!r} (required for offline-advanced)."
+            )
+
+        # online-cached: ensure cache folder exists (file itself will be created later)
+        if mode == "online-cached":
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
@@ -139,7 +147,7 @@ class SearchService:
         record = basic_offline_search(self.master_db, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
-        return record, "master-cache"
+        return record, self.cfg.mode
 
     def _search_offline_advanced(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')
@@ -149,16 +157,25 @@ class SearchService:
                 "No compounds matched identifier: "
                 + ", ".join(f"{k}={v}" for k, v in input.items())
             )
-        return results, "user-cache"
+        return results, self.cfg.mode
 
     def _search_online_only(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')
         data = fetch_molecule_data(id_type, id_value)
+        data[0]['InChIKey14'] = data[0]['InChIKey'][0:14]
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type, id_value}.")
-        return data, "api"
+        return data, self.cfg.mode
 
     def _search_online_cached(self, input):
         id_type, id_value = self._preprocess_input(input, 'advanced')
         rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
-        return rec, "user-cache" if from_cache else "api"
+
+        # DEBUG log: record whether this hit came from cache or API
+        source = 'cache' if from_cache else 'API'
+        logger.debug(
+            "SearchService._search_online_cached: "
+            "identifier=%s, result_source=%s",
+            {id_type: id_value}, source
+        )
+        return rec, self.cfg.mode

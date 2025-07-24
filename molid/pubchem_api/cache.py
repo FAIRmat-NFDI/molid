@@ -27,7 +27,7 @@ def store_cached_data(
         db_file=cache_db_file,
         table=CACHE_TABLE,
         records=api_data,
-        ignore_conflicts=False
+        ignore_conflicts=True
     )
 
     logger.info("Cached %d records for %s (%s)", len(api_data), id_type, id_value)

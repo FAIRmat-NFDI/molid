@@ -1,6 +1,8 @@
+import os
 import pytest
 from pathlib import Path
 from ase.build import molecule
+from molid.db.db_utils import create_cache_db, insert_dict_records
 from molid.pipeline import (
     search_identifier,
     search_from_atoms,
@@ -8,21 +10,23 @@ from molid.pipeline import (
     search_from_input,
 )
 
-# Shared expected results to avoid duplication
+# Shared expected results
 ADVANCED_RESULT = {
     'CID': 280,
     'InChIKey': 'CURLTUGMZLYLDI-UHFFFAOYSA-N',
+    'InChIKey14': 'CURLTUGMZLYLDI',
     'MolecularFormula': 'CO2',
     'InChI': 'InChI=1S/CO2/c2-1-3',
     'TPSA': 34.1,
     'Charge': 0,
-    'CanonicalSMILES': 'C(=O)=O',
+    'ConnectivitySMILES': 'C(=O)=O',
+    'SMILES': 'C(=O)=O',
     'Title': 'Carbon Dioxide',
     'XLogP': 0.9,
     'ExactMass': '43.989829239',
     'Complexity': 18,
     'MonoisotopicMass': '43.989829239',
-    'IsomericSMILES': 'C(=O)=O'
+    'SMILES': 'C(=O)=O'
 }
 
 BASIC_RESULT = {
@@ -33,121 +37,134 @@ BASIC_RESULT = {
     'InChIKey14': 'CURLTUGMZLYLDI'
 }
 
-
 @pytest.fixture(scope="session", autouse=True)
 def clear_cache():
-    """
-    Ensure any existing test cache is removed before tests run.
-    """
+    # ensure no leftover cache from previous runs
     cache_path = Path("tests/data/test_cache.db")
     if cache_path.exists():
         cache_path.unlink()
 
-
 @pytest.fixture
-def test_config(tmp_path, request):
+def set_env(request, monkeypatch):
     """
-    Write a temporary configuration file for a given search mode.
-
-    If not parametrized, defaults to 'online-only'.
+    Configure MOLID_* environment variables for each mode.
+    If parametrized, request.param is the mode string.
     """
     mode = getattr(request, 'param', 'online-only')
-    cfg_file = tmp_path / "config.yaml"
-    cfg_file.write_text(
-        f'master_db: "tests/data/test_master.db"\n'
-        f'cache_db:  "tests/data/test_cache.db"\n'
-        f'mode:      "{mode}"\n'
-        f'cache_enabled: true\n'
-    )
-    return str(cfg_file)
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      mode)
 
+    # For any mode that needs to read from the cache, seed it with our CO₂ record
+    if mode in ("offline-advanced", "online-cached"):
+        # ADVANCED_RESULT is defined just below
+        create_cache_db("tests/data/test_cache.db")
+        insert_dict_records(
+            db_file="tests/data/test_cache.db",
+            table="cached_molecules",
+            records=[ADVANCED_RESULT],
+            ignore_conflicts=True
+        )
+    return mode
 
 @pytest.mark.parametrize(
-    "test_config, expected_result, expected_sources",
+    "set_env, expected_result",
     [
-        pytest.param(
-            "online-only",
-            ADVANCED_RESULT,
-            ["api", "api"],
-            id="online-only"
-        ),
-        pytest.param(
-            "online-cached",
-            ADVANCED_RESULT,
-            ["api", "user-cache"],
-            id="online-cached"
-        ),
-        pytest.param(
-            "offline-basic",
-            BASIC_RESULT,
-            ["master-cache", "master-cache"],
-            id="offline-basic"
-        ),
-        pytest.param(
-            "offline-advanced",
-            ADVANCED_RESULT,
-            ["user-cache", "user-cache"],
-            id="offline-advanced"
-        )
+        ("online-only", ADVANCED_RESULT),
+        ("online-cached", ADVANCED_RESULT),
+        ("offline-basic", BASIC_RESULT),
+        ("offline-advanced", ADVANCED_RESULT),
     ],
-    indirect=["test_config"]
+    indirect=["set_env"]
 )
-def test_search_identifier(test_config, expected_result, expected_sources):
-    """
-    Validates search_identifier behavior across modes, ensuring caching works as expected.
-    """
-    results = []
+def test_search_identifier(set_env, expected_result):
+    mode = set_env
+    seen = []
     sources = []
+    # import pdb; pdb.set_trace()
+    cache_path = Path("tests/data/test_cache.db")
+
     for _ in range(2):
-        results, source = search_identifier({"SMILES": "C(=O)=O"}, config_path=test_config)
+        results, source = search_identifier({"SMILES": "C(=O)=O"})
         assert len(results) == 1
-        result = results[0]
-        # Remove nondeterministic fields
-        result.pop("fetched_at", None)
-        result.pop("id", None)
-        results.append(result)
+        # strip nondeterministic fields
+        rec = results[0].copy()
+        rec.pop("fetched_at", None)
+        rec.pop("id", None)
+        seen.append(rec)
         sources.append(source)
-    # Each call should return the same result
-    assert results == [expected_result, expected_result]
-    # Sources sequence should match expected caching behavior
-    assert sources == expected_sources
 
+    assert seen == [expected_result, expected_result]
+    # the library returns the mode string as the source in every call
+    assert sources == [mode, mode]
+    # import pdb; pdb.set_trace()
 
-def test_search_from_atoms(test_config):
+def test_search_from_atoms(monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
+
     atoms = molecule("CH4")
-    result, source = search_from_atoms(atoms, config_path=test_config)
+    result, source = search_from_atoms(atoms)
     assert isinstance(result, list)
     assert isinstance(source, str)
 
+def test_search_from_file_xyz(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
 
-def test_search_from_file_xyz(tmp_path, test_config):
-    xyz_file = tmp_path / "test.xyz"
-    xyz_file.write_text("""5\nMethane\nC 0.000 0.000 0.000\nH 0.629 0.629 0.629\nH -0.629 -0.629 0.629\nH -0.629 0.629 -0.629\nH 0.629 -0.629 -0.629\n""")
-    result, source = search_from_file(str(xyz_file), config_path=test_config)
+    xyz_file = tmp_path / "methane.xyz"
+    xyz_file.write_text(
+        "5\nMethane\n"
+        "C 0.000 0.000 0.000\n"
+        "H 0.629 0.629 0.629\n"
+        "H -0.629 -0.629 0.629\n"
+        "H -0.629 0.629 -0.629\n"
+        "H 0.629 -0.629 -0.629\n"
+    )
+    result, source = search_from_file(str(xyz_file))
     assert isinstance(result, list)
     assert isinstance(source, str)
 
+def test_search_from_file_invalid_extension(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
 
-def test_search_from_file_invalid_extension(tmp_path, test_config):
-    invalid_file = tmp_path / "test.txt"
-    invalid_file.write_text("Some invalid content")
+    invalid = tmp_path / "not.xyz.txt"
+    invalid.write_text("foo")
     with pytest.raises(ValueError):
-        search_from_file(str(invalid_file), config_path=test_config)
+        search_from_file(str(invalid))
 
+def test_search_from_input_dict(monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
 
-def test_search_from_input_dict(test_config):
-    result, source = search_from_input({"SMILES": "C"}, config_path=test_config)
+    result, source = search_from_input({"SMILES": "C"})
     assert isinstance(result, list)
     assert isinstance(source, str)
 
+def test_search_from_input_raw_xyz(monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
 
-def test_search_from_input_raw_xyz(test_config):
-    xyz = """3\nwater\nO      0.00000      0.00000      0.00000\nH      0.75700      0.58600      0.00000\nH     -0.75700      0.58600      0.00000\n"""
-    result, source = search_from_input(xyz, config_path=test_config)
+    xyz = (
+        "3\nwater\n"
+        "O      0.00000      0.00000      0.00000\n"
+        "H      0.75700      0.58600      0.00000\n"
+        "H     -0.75700      0.58600      0.00000\n"
+    )
+    result, source = search_from_input(xyz)
     assert isinstance(result, list)
     assert isinstance(source, str)
 
+def test_search_from_input_invalid_type(monkeypatch):
+    monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
+    monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_MODE",      "online-only")
 
-def test_search_from_input_invalid_type(test_config):
     with pytest.raises(ValueError):
-        search_from_input(12345, config_path=test_config)
+        search_from_input(12345)

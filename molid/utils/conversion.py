@@ -57,7 +57,6 @@ def atoms_to_inchikey(atoms):
     buf = StringIO()
     write(buf, atoms, format="xyz")
     xyz_content = buf.getvalue()
-
     # convert, passing isotope flags if any
     return convert_xyz_to_inchikey(xyz_content, isotopes=isotopes if isotopes else None)
 
@@ -69,8 +68,13 @@ def convert_to_inchikey(identifier: str, id_type: str) -> str:
     """
     conv = openbabel.OBConversion()
     mol = openbabel.OBMol()
-    if not conv.SetInAndOutFormats(id_type, "inchikey"):
-        raise ValueError(f"Cannot convert from {id_type} to InChIKey")
+    fmt_in = {"smiles": "smi"}.get(id_type.lower(), id_type.lower())
+
+    # This single call both sets and checks the formats
+    if not conv.SetInAndOutFormats(fmt_in, "inchikey"):
+        raise ValueError(f"Cannot convert from '{id_type}' to InChIKey")
+
     if not conv.ReadString(mol, identifier):
         raise ValueError(f"Failed to parse {id_type!r}: {identifier!r}")
+
     return conv.WriteString(mol).strip()

@@ -1,9 +1,0 @@
-# Path to full‐dump (“master”) SQLite database
-master_db: "../pubchem_data_FULL.db"
-
-# Path to per-user cache database
-cache_db:  "../pubchem_cache.db"
-
-# One of: offline-basic | offline-advanced | online-only | online-cached
-mode: "online-only"
-
