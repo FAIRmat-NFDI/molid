@@ -23,23 +23,23 @@ CREATE TABLE IF NOT EXISTS processed_folders (
 
 CACHE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cached_molecules (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    CID               INTEGER,
-    InChIKey          TEXT,
-    InChIKey14        TEXT,
-    MolecularFormula  TEXT,
-    InChI             TEXT,
-    TPSA              REAL,
-    Charge            INTEGER,
-    CanonicalSMILES   TEXT,
-    Title             TEXT,
-    IUPACName         TEXT,
-    XLogP             REAL,
-    ExactMass         TEXT,
-    Complexity        INTEGER,
-    MonoisotopicMass  TEXT,
-    IsomericSMILES    TEXT,
-    fetched_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    CID                INTEGER,
+    InChIKey           TEXT UNIQUE,
+    InChIKey14         TEXT,
+    MolecularFormula   TEXT,
+    InChI              TEXT,
+    TPSA               REAL,
+    Charge             INTEGER,
+    ConnectivitySMILES TEXT,
+    Title              TEXT,
+    IUPACName          TEXT,
+    XLogP              REAL,
+    ExactMass          TEXT,
+    Complexity         INTEGER,
+    MonoisotopicMass   TEXT,
+    SMILES     TEXT,
+    fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(InChIKey14);

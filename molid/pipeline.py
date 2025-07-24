@@ -7,14 +7,14 @@ from ase.io import read
 from molid.utils.conversion import atoms_to_inchikey
 from molid.search.service import SearchService, SearchConfig
 from molid.pubchemproc.pubchem import process_file, FIELDS_TO_EXTRACT
-from molid.utils.config_loader import load_config, AppConfig
+from molid.utils.settings import load_config, AppConfig
 
 
-def _create_search_service(config_path: str = "config.yaml") -> SearchService:
+def _create_search_service() -> SearchService:
     """
-    Instantiate a SearchService based on parameters in config.yaml.
+    Instantiate a SearchService from Pydantic settings (env/defaults).
     """
-    cfg: AppConfig = load_config(config_path)
+    cfg: AppConfig = load_config()
     master_db     = cfg.master_db
     cache_db      = cfg.cache_db
     mode          = cfg.mode
@@ -24,34 +24,25 @@ def _create_search_service(config_path: str = "config.yaml") -> SearchService:
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
 
 
-def search_identifier(
-    input,
-    config_path: str = "config.yaml"
-):
+def search_identifier(input):
     """
     Universal search for any identifier type (InChIKey, SMILES, name, etc.)
-    using the mode defined in config.yaml. Returns (list of result dicts, source).
+    using the configured mode. Returns (list of result dicts, source).
     """
-    service = _create_search_service(config_path)
+    service = _create_search_service()
     return service.search(input)
 
-def search_from_atoms(
-    atoms: Atoms,
-    config_path: str = "config.yaml"
-):
+def search_from_atoms(atoms: Atoms):
     """
     Search using an ASE Atoms object. Computes its InChIKey, then delegates.
     Returns (list of result dicts, source).
     """
     inchikey = atoms_to_inchikey(atoms)
     input = {"inchikey": inchikey}
-    return search_identifier(input, config_path=config_path)
+    return search_identifier(input)
 
 
-def search_from_file(
-    file_path: str,
-    config_path: str = "config.yaml"
-):
+def search_from_file(file_path: str):
     """
     Detect file extension from path and process accordingly:
     - .xyz, .extxyz: read via ASE, then search
@@ -65,20 +56,17 @@ def search_from_file(
     ext = p.suffix.lower()
     if ext in ['.xyz', '.extxyz']:
         atoms = read(str(p), format='xyz')
-        return search_from_atoms(atoms, config_path)
+        return search_from_atoms(atoms)
     if ext == '.sdf':
         records = process_file(str(p), FIELDS_TO_EXTRACT)
         if not records or 'InChIKey' not in records[0]:
             raise ValueError(f"No InChIKey found in SDF: {file_path}")
         inchikey = records[0]['InChIKey']
-        return search_identifier(inchikey, config_path=config_path)
+        return search_identifier({"inchikey": inchikey})
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def search_from_input(
-    data,
-    config_path: str = "config.yaml"
-):
+def search_from_input(data):
     """
     Universal entrypoint: accepts one of:
       • ASE Atoms
@@ -89,24 +77,24 @@ def search_from_input(
     """
     # Identifier
     if isinstance(data, dict):
-        return search_identifier(data, config_path)
+        return search_identifier(data)
 
     # ASE Atoms
     if isinstance(data, Atoms):
-        return search_from_atoms(data, config_path)
+        return search_from_atoms(data)
 
     # File path
     if isinstance(data, str) and os.path.isfile(data):
-        return search_from_file(data, config_path)
+        return search_from_file(data)
 
     if isinstance(data, Path) and data.is_file():
-        return search_from_file(str(data), config_path)
+        return search_from_file(str(data))
 
     # Raw XYZ content
     if isinstance(data, str):
         try:
             atoms = read(io.StringIO(data), format='xyz')
-            return search_from_atoms(atoms, config_path)
+            return search_from_atoms(atoms)
         except Exception as e:
             print(e)
             pass

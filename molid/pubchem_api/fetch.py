@@ -5,7 +5,7 @@ def fetch_molecule_data(
     id_value: str,
     properties: tuple = (
         "Title", "IUPACName", "MolecularFormula", "InChI", "InChIKey",
-        "CanonicalSMILES", "IsomericSMILES", "XLogP", "ExactMass",
+        "ConnectivitySMILES", "SMILES", "XLogP", "ExactMass",
         "MonoisotopicMass", "TPSA", "Complexity", "Charge"
     ),
 ) -> dict:
@@ -27,6 +27,5 @@ def fetch_molecule_data(
 
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
-
     data = resp.json().get("PropertyTable", {}).get("Properties", [])
-    return data if data else []
+    return data if data else {}

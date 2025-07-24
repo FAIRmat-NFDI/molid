@@ -8,9 +8,9 @@ __all__ = [
 ]
 
 
-def run(data, config_path: str = "config.yaml") -> (dict, str):
+def run(data) -> (dict, str):
     """
-    Execute a MolID lookup on the given data using the configuration at config_path.
+    Execute a MolID lookup on the given data using Pydantic settings.
 
     Parameters
     ----------
@@ -19,8 +19,6 @@ def run(data, config_path: str = "config.yaml") -> (dict, str):
         - Path to a .xyz/.extxyz/.sdf file
         - Raw XYZ content as string
         - dict of identifier and identifier type (example {"SMILES": "c1ccccc1"})
-    config_path : str
-        Path to MolID config.yaml
 
     Returns
     -------
@@ -33,4 +31,4 @@ def run(data, config_path: str = "config.yaml") -> (dict, str):
     ------
     ValueError, FileNotFoundError
     """
-    return search_from_input(data, config_path)
+    return search_from_input(data)
