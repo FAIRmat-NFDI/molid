@@ -1,4 +1,3 @@
-import os
 import pytest
 from pathlib import Path
 from ase.build import molecule
@@ -25,8 +24,7 @@ ADVANCED_RESULT = {
     'XLogP': 0.9,
     'ExactMass': '43.989829239',
     'Complexity': 18,
-    'MonoisotopicMass': '43.989829239',
-    'SMILES': 'C(=O)=O'
+    'MonoisotopicMass': '43.989829239'
 }
 
 BASIC_RESULT = {
@@ -81,8 +79,6 @@ def test_search_identifier(set_env, expected_result):
     mode = set_env
     seen = []
     sources = []
-    # import pdb; pdb.set_trace()
-    cache_path = Path("tests/data/test_cache.db")
 
     for _ in range(2):
         results, source = search_identifier({"SMILES": "C(=O)=O"})

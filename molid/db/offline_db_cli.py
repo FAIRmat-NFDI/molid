@@ -85,7 +85,8 @@ def update_database(
                 # corrupted download: remove and retry
                 logger.warning("Bad checksum for %s, will retry downloading.", file_name)
                 for p in (gz_path, md5_path):
-                    if p.exists(): p.unlink()
+                    if p.exists():
+                        p.unlink()
                 consecutive_failures += 1
                 continue
 
@@ -116,7 +117,7 @@ def update_database(
             logger.error(f"[ERROR] Exception processing {file_name}: {e}")
             consecutive_failures += 1
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                logger.error(f"Aborting after %d consecutive exceptions", MAX_CONSECUTIVE_FAILURES)
+                logger.error("Aborting after %d consecutive exceptions", MAX_CONSECUTIVE_FAILURES)
                 break
 
 def use_database(db_file: str) -> None:
