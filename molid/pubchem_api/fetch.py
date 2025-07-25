@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import requests
 
 def fetch_molecule_data(

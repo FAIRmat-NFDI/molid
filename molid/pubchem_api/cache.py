@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from molid.search.db_lookup import advanced_search
 from molid.db.db_utils import insert_dict_records
 
@@ -11,8 +14,8 @@ def store_cached_data(
     cache_db_file: str,
     id_type: str,
     id_value: str,
-    api_data: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    api_data: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """
     Store the API response in the cache database.
     """
@@ -45,7 +48,7 @@ def get_cached_or_fetch(
     cache_db_file: str,
     id_type: str,
     id_value: str,
-) -> Tuple[Dict[str, Any], bool]:
+) -> tuple[dict[str, Any], bool]:
     """
     Checks for a cached molecule; if not found, fetches data via the API
     and stores it.

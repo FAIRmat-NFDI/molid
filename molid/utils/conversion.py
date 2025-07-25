@@ -1,15 +1,21 @@
-from ase.io import write
-from ase.data import atomic_masses
-import io
+from __future__ import annotations
+
 import contextlib
+import io
 from io import StringIO
+
+from ase.data import atomic_masses
+from ase.io import write
 from openbabel import openbabel
 
 # threshold for detecting isotopic masses (amu)
 MASS_TOLERANCE = 0.1
 
 
-def convert_xyz_to_inchikey(xyz_content, isotopes=None):
+def convert_xyz_to_inchikey(
+    xyz_content: str,
+    isotopes: dict[int, int] | None = None
+) -> str:
     """Convert XYZ file content to an (optionally isotopic) InChIKey using OpenBabel."""
     ob_conversion = openbabel.OBConversion()
     ob_mol = openbabel.OBMol()
@@ -29,28 +35,28 @@ def convert_xyz_to_inchikey(xyz_content, isotopes=None):
     # inchi → inchikey
     if not ob_conversion.SetInAndOutFormats("inchi", "inchikey"):
         raise ValueError("Failed to set formats for inchi to inchikey.")
+
     # suppress OpenBabel stderr output
     with contextlib.redirect_stderr(io.StringIO()):
         inchikey = ob_conversion.WriteString(ob_mol).strip()
     return inchikey
 
 
-def atoms_to_inchikey(atoms):
+def atoms_to_inchikey(
+    atoms: Atoms
+) -> str:
     """
     Convert an ASE Atoms object to an InChIKey, automatically detecting
     and tagging any isotopic atoms so the resulting InChIKey includes
     isotopic information.
     """
-    # detect isotopes by comparing to standard atomic masses
     masses = atoms.get_masses()
     numbers = atoms.get_atomic_numbers()
-    isotopes = {}
+    isotopes: dict[int, int] = {}
     for i, (Z, mass) in enumerate(zip(numbers, masses)):
         std_mass = atomic_masses[Z]
         if abs(mass - std_mass) > MASS_TOLERANCE:
-            # round to nearest integer for mass number
             mass_number = int(round(mass))
-            # OpenBabel expects 1-based atom indices
             isotopes[i + 1] = mass_number
 
     # write to XYZ format
@@ -58,19 +64,22 @@ def atoms_to_inchikey(atoms):
     write(buf, atoms, format="xyz")
     xyz_content = buf.getvalue()
     # convert, passing isotope flags if any
-    return convert_xyz_to_inchikey(xyz_content, isotopes=isotopes if isotopes else None)
+    return convert_xyz_to_inchikey(xyz_content, isotopes=isotopes or None)
 
 
-def convert_to_inchikey(identifier: str, id_type: str) -> str:
+def convert_to_inchikey(
+    identifier: str,
+    id_type: str
+) -> str:
     """
     Convert a non-XYZ identifier (SMILES, InChI, etc.) to InChIKey.
-    Isotopic information must be encoded in the identifier itself for OpenBabel to pick up.
+    Isotopic information must be encoded in the identifier itself for
+    OpenBabel to pick up.
     """
     conv = openbabel.OBConversion()
     mol = openbabel.OBMol()
     fmt_in = {"smiles": "smi"}.get(id_type.lower(), id_type.lower())
 
-    # This single call both sets and checks the formats
     if not conv.SetInAndOutFormats(fmt_in, "inchikey"):
         raise ValueError(f"Cannot convert from '{id_type}' to InChIKey")
 
