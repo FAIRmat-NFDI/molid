@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import sqlite3
 import logging
 from pathlib import Path
-from typing import List, Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,8 @@ class DatabaseManager:
     def insert_many(
         self,
         table: str,
-        columns: List[str],
-        rows: List[List[Any]],
+        columns: list[str],
+        rows: list[list[Any]],
         ignore_conflicts: bool = True
     ) -> None:
         """
@@ -59,7 +61,7 @@ class DatabaseManager:
         self,
         table: str,
         where_clause: str,
-        params: List[Any]
+        params: list[Any]
     ) -> bool:
         """Return True if a row exists matching the given WHERE clause."""
         sql = f"SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1"
@@ -71,7 +73,11 @@ class DatabaseManager:
             logger.error("Existence check failed on %s: %s", self.db_path, e)
             return False
 
-    def query_one(self, sql: str, params: List[Any] = None) -> Dict[str, Any]:
+    def query_one(
+        self,
+        sql: str,
+        params: list[Any] = None
+    ) -> dict[str, Any]:
         """Return a single row as a dict, or None if not found."""
         params = params or []
         with sqlite3.connect(self.db_path) as conn:
@@ -80,7 +86,11 @@ class DatabaseManager:
             row = cur.fetchone()
             return dict(row) if row else None
 
-    def query_all(self, sql: str, params: List[Any] = None) -> List[Dict[str, Any]]:
+    def query_all(
+        self,
+        sql: str,
+        params: list[Any] = None
+    ) -> list[dict[str, Any]]:
         """Return all matching rows as a list of dicts."""
         params = params or []
         with sqlite3.connect(self.db_path) as conn:

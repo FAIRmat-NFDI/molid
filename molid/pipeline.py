@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import io
 import os
 from pathlib import Path
+from typing import Any
+
 from ase import Atoms
 from ase.io import read
 
@@ -24,7 +28,7 @@ def _create_search_service() -> SearchService:
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
 
 
-def search_identifier(input):
+def search_identifier(input: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     """
     Universal search for any identifier type (InChIKey, SMILES, name, etc.)
     using the configured mode. Returns (list of result dicts, source).
@@ -32,17 +36,16 @@ def search_identifier(input):
     service = _create_search_service()
     return service.search(input)
 
-def search_from_atoms(atoms: Atoms):
+def search_from_atoms(atoms: Atoms) -> tuple[list[dict[str, Any]], str]:
     """
     Search using an ASE Atoms object. Computes its InChIKey, then delegates.
     Returns (list of result dicts, source).
     """
     inchikey = atoms_to_inchikey(atoms)
-    input = {"inchikey": inchikey}
-    return search_identifier(input)
+    return search_identifier({"inchikey": inchikey})
 
 
-def search_from_file(file_path: str):
+def search_from_file(file_path: str) -> tuple[list[dict[str, Any]], str]:
     """
     Detect file extension from path and process accordingly:
     - .xyz, .extxyz: read via ASE, then search
@@ -66,7 +69,7 @@ def search_from_file(file_path: str):
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def search_from_input(data):
+def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
     """
     Universal entrypoint: accepts one of:
       • ASE Atoms
@@ -101,12 +104,25 @@ def search_from_input(data):
 
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
 
-def _sanity_check(master_db, cache_db, mode):
-    if mode not in ("offline-basic", "offline-advanced", "online-only", "online-cached"):
-        raise ValueError(f'{mode} is no valid search mode. Select on of "offline-basic", "offline-advanced", "online-only", "online-cached"')
+def _sanity_check(
+    master_db: str,
+    cache_db: str,
+    mode: str
+) -> None:
+    if mode not in (
+        "offline-basic", "offline-advanced",
+        "online-only", "online-cached"
+    ):
+        raise ValueError(
+            f'{mode} is no valid search mode. Select on of "offline-basic", "offline-advanced", "online-only", "online-cached"'
+        )
     p_master_db = Path(master_db)
     if mode == "offline-basic" and not p_master_db.exists():
-        raise FileNotFoundError(f"File not found: {master_db}. Master DB needed for {mode}")
+        raise FileNotFoundError(
+            f"File not found: {master_db}. Master DB needed for {mode}"
+        )
     p_cache_db = Path(cache_db)
     if mode == "offline-advanced" and not p_cache_db.exists():
-        raise FileNotFoundError(f"File not found: {p_cache_db}. Cache DB needed for {mode}")
+        raise FileNotFoundError(
+            f"File not found: {p_cache_db}. Cache DB needed for {mode}"
+        )

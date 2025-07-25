@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import ftplib
 import time
 import logging
 import socket
 from pathlib import Path
-from typing import List
+
 from molid.pubchemproc.file_handler import (
     validate_gz_file,
     GzipValidationError,
@@ -36,14 +38,14 @@ def validate_start_position(local_file_path: Path, ftp_size: int) -> int:
     return start_position
 
 
-def get_total_files_from_ftp() -> List[str]:
+def get_total_files_from_ftp() -> list[str]:
     """Fetch the list of available files on the FTP server."""
     try:
         with ftplib.FTP(FTP_SERVER, timeout=30) as ftp:
             ftp.login(user="anonymous", passwd="guest@example.com")
             ftp.set_pasv(True)
             ftp.cwd(FTP_DIRECTORY)
-            files: List[str] = []
+            files: list[str] = []
             ftp.retrlines("NLST", lambda x: files.append(x))
             sdf_files = [f for f in files if f.endswith(".sdf.gz")]
             logger.info("Total .sdf.gz files available on server: %d", len(sdf_files))
@@ -55,12 +57,17 @@ def get_total_files_from_ftp() -> List[str]:
         raise RuntimeError(f"Failed to fetch file list from FTP server: {e}")
 
 
-def attempt_download(file_name: str, local_file_path: Path, start_position: int, ftp: ftplib.FTP) -> bool:
+def attempt_download(
+    file_name: str,
+    local_file_path: Path,
+    start_position: int,
+    ftp: ftplib.FTP,
+) -> bool:
     """Attempt to download a file with resume or restart logic."""
-    # Enable TCP keep-alive to avoid broken pipes
     ftp.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     ftp_size = ftp.size(file_name)
-    with open(local_file_path, "ab" if start_position > 0 else "wb") as local_file:
+    mode = "ab" if start_position > 0 else "wb"
+    with open(local_file_path, mode) as local_file:
         try:
             # Use smaller blocksize for more reliable transfers
             ftp.retrbinary(
@@ -108,8 +115,11 @@ def download_via_http(file_name: str, download_folder: str) -> Path:
     logger.info("Successfully downloaded via HTTP: %s", file_name)
     return local
 
-
-def download_file_with_resume(file_name: str, download_folder: str, max_retries: int = 5) -> Path | None:
+def download_file_with_resume(
+    file_name: str,
+    download_folder: str,
+    max_retries: int = 5,
+) -> Path | None:
     """Download a file with resume support, retry logic, and HTTPS fallback."""
     local_file_path = Path(download_folder) / file_name
     backoff = 5
@@ -122,36 +132,68 @@ def download_file_with_resume(file_name: str, download_folder: str, max_retries:
                 ftp.cwd(FTP_DIRECTORY)
 
                 ftp_size = ftp.size(file_name)
-                logger.debug("Server-reported file size for %s: %d", file_name, ftp_size)
+                logger.debug(
+                    "Server-reported file size for %s: %d", file_name, ftp_size
+                    )
 
                 start_position = validate_start_position(local_file_path, ftp_size)
                 if attempt_download(file_name, local_file_path, start_position, ftp):
                     return local_file_path
 
         except socket.gaierror as dns_err:
-            logger.error("Name resolution error on attempt %d for %s: %s", attempt, file_name, dns_err)
+            logger.error(
+                "Name resolution error on attempt %d for %s: %s",
+                attempt,
+                file_name,
+                dns_err
+            )
             try:
-                logger.info("Falling back to HTTPS due to DNS error: %s", file_name)
+                logger.info(
+                    "Falling back to HTTPS due to DNS error: %s",
+                    file_name
+                )
                 return download_via_http(file_name, download_folder)
             except Exception as http_e:
-                logger.error("HTTPS fallback failed after DNS error: %s", http_e)
+                logger.error(
+                    "HTTPS fallback failed after DNS error: %s",
+                    http_e
+                )
                 return None
         except Exception as e:
-            logger.error("Attempt %d/%d failed for %s: %s", attempt, max_retries, file_name, e)
+            logger.error(
+                "Attempt %d/%d failed for %s: %s",
+                attempt,
+                max_retries,
+                file_name,
+                e
+            )
             if local_file_path.exists():
-                logger.warning("Deleting incomplete file: %s", local_file_path)
+                logger.warning(
+                    "Deleting incomplete file: %s",
+                    local_file_path
+                )
                 local_file_path.unlink()
             if attempt == max_retries:
-                logger.info("Max retries reached for %s, falling back to HTTP", file_name)
+                logger.info(
+                    "Max retries reached for %s, falling back to HTTP",
+                    file_name
+                )
                 try:
                     return download_via_http(file_name, download_folder)
                 except Exception as http_e:
-                    logger.error("HTTPS fallback failed: %s", http_e)
+                    logger.error(
+                        "HTTPS fallback failed: %s",
+                        http_e
+                    )
                     return None
         time.sleep(backoff)
         backoff *= 2
 
-    logger.error("Failed to download %s after %d attempts.", file_name, max_retries)
+    logger.error(
+        "Failed to download %s after %d attempts.",
+        file_name,
+        max_retries
+    )
     if local_file_path.exists():
         local_file_path.unlink()
     return None

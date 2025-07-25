@@ -1,5 +1,11 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
+
+from collections.abc import Callable
+from typing import Any
+
 from molid.pubchemproc.file_handler import (
     validate_gz_file,
     unpack_gz_file,
@@ -12,15 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 # Fields used for processing SDF files (only a limited set)
-FIELDS_TO_EXTRACT = {
+FIELDS_TO_EXTRACT: dict[str, str] = {
     "SMILES": "PUBCHEM_SMILES",
     "InChIKey": "PUBCHEM_IUPAC_INCHIKEY",
     "InChI": "PUBCHEM_IUPAC_INCHI",
     "Formula": "PUBCHEM_MOLECULAR_FORMULA",
 }
 
-def process_file(file_path, fields_to_extract):
-    """Extract data from an .sdf file."""
+def process_file(
+    file_path: Path,
+    fields_to_extract: dict[str, str]
+) -> list[dict[str, str]]:
+    """Extract specified fields from an .sdf file, returning a list of dicts."""
     data = []
     with open(file_path, "r") as file:
         compound_data = {}
@@ -40,7 +49,13 @@ def process_file(file_path, fields_to_extract):
                 compound_data = {}
     return data
 
-def download_and_process_file(file_name, download_folder, processed_folder, fields_to_extract, process_callback):
+def download_and_process_file(
+    file_name: str,
+    download_folder: Path | str,
+    processed_folder: Path | str,
+    fields_to_extract: dict[str, str],
+    process_callback: Callable[[list[dict[str, Any]]], None]
+) -> bool:
     """
     Download, unpack, process, and save a single file with tracking.
     """

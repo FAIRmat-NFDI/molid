@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import gzip
 import shutil
 import hashlib
@@ -12,7 +14,7 @@ class GzipValidationError(Exception):
 class FileUnpackError(Exception):
     pass
 
-def validate_gz_file(gz_file_path):
+def validate_gz_file(gz_file_path: Path) -> None:
     """Validate the integrity of a .gz file, or raise an error."""
     try:
         with gzip.open(gz_file_path, "rb") as gz_file:
@@ -23,7 +25,7 @@ def validate_gz_file(gz_file_path):
         logger.error("Invalid .gz file: %s - %s", gz_file_path.name, e)
         raise GzipValidationError(f"Invalid gzip file: {gz_file_path}") from e
 
-def unpack_gz_file(gz_file_path, output_folder):
+def unpack_gz_file(gz_file_path: Path, output_folder: Path | str) -> Path:
     """Unpack a .gz file or raise on failure."""
     extracted_file_path = Path(output_folder) / gz_file_path.stem
     try:
@@ -36,7 +38,7 @@ def unpack_gz_file(gz_file_path, output_folder):
         logger.error("Failed to unpack %s: %s", gz_file_path.name, e)
         raise FileUnpackError(f"Could not unpack {gz_file_path}") from e
 
-def cleanup_files(*paths):
+def cleanup_files(*paths: Path | str) -> None:
     """Delete specified files or directories."""
     for path in paths:
         path = Path(path)
@@ -48,7 +50,7 @@ def cleanup_files(*paths):
                 shutil.rmtree(path)
                 logger.info("Directory deleted: %s", path)
 
-def move_file(source, destination):
+def move_file(source: Path | str, destination: Path | str) -> None:
     """Move a file to a new location."""
     source_path = Path(source)
     destination_path = Path(destination)

@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import os
 import logging
 from dataclasses import dataclass
-from typing import Any, Tuple, List, Dict
+
+from collections.abc import Callable
+from typing import Any
 
 from molid.search.db_lookup import basic_offline_search
 from molid.pubchem_api.cache import get_cached_or_fetch
@@ -53,12 +57,12 @@ class SearchService:
     def __init__(
         self,
         master_db: str,
-        cache_db:   str,
-        cfg:       SearchConfig
+        cache_db: str,
+        cfg: SearchConfig
     ) -> None:
         self.master_db = master_db
-        self.cache_db   = cache_db
-        self.cfg       = cfg
+        self.cache_db = cache_db
+        self.cfg = cfg
 
         # Fail fast if the selected mode requires files that are not present.
         self._ensure_required_files()
@@ -67,8 +71,7 @@ class SearchService:
         if self.cfg.mode == "online-cached":
             create_cache_db(self.cache_db)
 
-        # Dispatch table keeps :py:meth:`search` straightforward.
-        self._dispatch = {
+        self._dispatch: dict[str, Callable[[dict[str, Any]], tuple[list[dict[str, Any]], str]]] = {
             "offline-basic": self._search_offline_basic,
             "offline-advanced": self._search_offline_advanced,
             "online-only": self._search_online_only,
@@ -82,7 +85,7 @@ class SearchService:
     # Public API
     # ---------------------------------------------------------------------
 
-    def search(self, input) -> Tuple[List[Dict[str, Any]], str]:
+    def search(self, input) -> tuple[list[dict[str, Any]], str]:
         """Resolve input according to the configured mode.
         """
         logger.debug("Search request: id=%s (type=%s) via %s", input, self.cfg.mode)
@@ -116,7 +119,12 @@ class SearchService:
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
-    def _preprocess_input(self, input, mode):
+    def _preprocess_input(
+        self,
+        input: dict[str, Any],
+        mode: str
+    ) -> tuple[str, Any]:
+        """Normalize and convert identifiers based on mode (basic vs advanced)."""
         if mode == 'basic':
             id_types = ("inchikey", "inchi", "smiles")
         elif mode == 'advanced':
@@ -142,14 +150,20 @@ class SearchService:
     # Mode‑specific implementations
     # ------------------------------------------------------------------
 
-    def _search_offline_basic(self, input):
+    def _search_offline_basic(
+        self,
+        input: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], str]:
         __, id_value = self._preprocess_input(input, 'basic')
         record = basic_offline_search(self.master_db, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
         return record, self.cfg.mode
 
-    def _search_offline_advanced(self, input):
+    def _search_offline_advanced(
+        self,
+        input: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = self._preprocess_input(input, 'advanced')
         results = advanced_search(self.cache_db, id_type, id_value)
         if not results:
@@ -159,7 +173,10 @@ class SearchService:
             )
         return results, self.cfg.mode
 
-    def _search_online_only(self, input):
+    def _search_online_only(
+        self,
+        input: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = self._preprocess_input(input, 'advanced')
         data = fetch_molecule_data(id_type, id_value)
         data[0]['InChIKey14'] = data[0]['InChIKey'][0:14]
@@ -167,7 +184,10 @@ class SearchService:
             raise MoleculeNotFound(f"No PubChem results for {id_type, id_value}.")
         return data, self.cfg.mode
 
-    def _search_online_cached(self, input):
+    def _search_online_cached(
+        self,
+        params: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = self._preprocess_input(input, 'advanced')
         rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
 

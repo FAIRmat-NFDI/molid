@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 import logging
 import warnings
-from typing import Dict, Any, List, Optional
+
+from typing import Any
 from molid.db.sqlite_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
@@ -9,15 +12,7 @@ logger = logging.getLogger(__name__)
 CACHE_TABLE = 'cached_molecules'
 OFFLINE_TABLE_MASTER = 'compound_data'
 
-# _OFFLINE_FIELDS: Dict[str, str] = {
-#     'inchikey': 'InChIKey',
-#     'inchikey14': 'InChIKey14',
-#     'inchi': 'InChI',
-#     'smiles': 'SMILES',
-#     'formula': 'Formula',
-# }
-
-_CACHE_FIELDS: Dict[str, str] = {
+_CACHE_FIELDS: dict[str, str] = {
     'cid': 'CID',
     'inchikey': 'InChIKey',
     'inchikey14': 'InChIKey14',
@@ -38,7 +33,7 @@ _CACHE_FIELDS: Dict[str, str] = {
 def basic_offline_search(
     offline_db_file: str,
     id_value: str
-) -> Optional[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Query the offline full PubChem database for a given InChIKey or InChIKey14.
     """
@@ -72,7 +67,7 @@ def advanced_search(
     db_file: str,
     id_type: str,
     id_value: str
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Query SQLite database 'db_file' on table 'table' for rows matching id_type = id_value.
     """
