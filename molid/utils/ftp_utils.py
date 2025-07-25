@@ -3,6 +3,7 @@ import time
 import logging
 import socket
 from pathlib import Path
+from typing import List
 from molid.pubchemproc.file_handler import (
     validate_gz_file,
     GzipValidationError,
@@ -35,14 +36,14 @@ def validate_start_position(local_file_path: Path, ftp_size: int) -> int:
     return start_position
 
 
-def get_total_files_from_ftp() -> list[str]:
+def get_total_files_from_ftp() -> List[str]:
     """Fetch the list of available files on the FTP server."""
     try:
         with ftplib.FTP(FTP_SERVER, timeout=30) as ftp:
             ftp.login(user="anonymous", passwd="guest@example.com")
             ftp.set_pasv(True)
             ftp.cwd(FTP_DIRECTORY)
-            files: list[str] = []
+            files: List[str] = []
             ftp.retrlines("NLST", lambda x: files.append(x))
             sdf_files = [f for f in files if f.endswith(".sdf.gz")]
             logger.info("Total .sdf.gz files available on server: %d", len(sdf_files))
