@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from molid.pipeline import (
     search_from_input
 )
@@ -8,7 +12,7 @@ __all__ = [
 ]
 
 
-def run(data) -> (dict, str):
+def run(data: Any) -> tuple[list[dict[str, Any]], str]:
     """
     Execute a MolID lookup on the given data using Pydantic settings.
 

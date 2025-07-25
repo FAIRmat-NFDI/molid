@@ -1,9 +1,10 @@
-# molid/utils/settings.py
+from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 from appdirs import user_cache_dir, user_data_dir
 
 # Persisted env-file in the user's home directory
@@ -39,10 +40,10 @@ class AppConfig(BaseSettings):
         str(Path(user_data_dir("molid")) / "processed"),
         description="Where to unpack and stage SDF files"
         )
-    max_files: Optional[int] = Field(
+    max_files: int | None = Field(
         None,
         description="Default maximum number of SDF files to process (None = all)"
-        )
+    )
     model_config = SettingsConfigDict(
         env_prefix="MOLID_",
         env_file=str(ENV_FILE),
@@ -57,18 +58,17 @@ def save_config(**kwargs) -> None:
     Persist the given settings into ~/.molid.env so that Pydantic will load them next time.
     Usage: save_config(master_db="/path/to/db", mode="offline-basic")
     """
-    # Read existing lines
-    lines = {}
+    lines: dict[str, str] = {}
     if ENV_FILE.exists():
         for raw in ENV_FILE.read_text().splitlines():
             if raw.strip() and not raw.startswith("#") and "=" in raw:
                 k, v = raw.split("=", 1)
                 lines[k] = v
 
-    # Apply updates
     for key, val in kwargs.items():
         env_key = f"MOLID_{key.upper()}"
         lines[env_key] = str(val)
 
-    # Write back
-    ENV_FILE.write_text("\n".join(f"{k}={v}" for k, v in lines.items()))
+    ENV_FILE.write_text(
+        "\n".join(f"{k}={v}" for k, v in lines.items())
+    )
