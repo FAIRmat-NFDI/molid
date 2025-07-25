@@ -186,7 +186,7 @@ class SearchService:
 
     def _search_online_cached(
         self,
-        params: dict[str, Any]
+        input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = self._preprocess_input(input, 'advanced')
         rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
