@@ -6,6 +6,7 @@ from io import StringIO
 
 from ase.data import atomic_masses
 from ase.io import write
+from ase import Atoms
 from openbabel import openbabel
 
 # threshold for detecting isotopic masses (amu)
