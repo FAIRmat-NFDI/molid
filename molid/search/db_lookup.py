@@ -52,7 +52,7 @@ def basic_offline_search(
 
     # Fallback to InChIKey14 prefix match
     result = mgr.query_one(
-        f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE InChIKey14 = ?",
+        f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE substr(InChIKey,1,14) = ?",
         [id_value[:14]])
     if result:
         warnings.warn(

@@ -44,8 +44,6 @@ def process_file(
                     compound_data[key] = value
             elif line == "$$$$":
                 if compound_data:
-                    if "InChIKey" in compound_data:
-                        compound_data["InChIKey14"] = compound_data["InChIKey"][:14]
                     data.append(compound_data)
                 compound_data = {}
     return data

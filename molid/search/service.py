@@ -179,7 +179,6 @@ class SearchService:
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = self._preprocess_input(input, 'advanced')
         data = fetch_molecule_data(id_type, id_value)
-        data[0]['InChIKey14'] = data[0]['InChIKey'][0:14]
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type, id_value}.")
         return data, self.cfg.mode

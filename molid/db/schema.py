@@ -8,11 +8,10 @@ CREATE TABLE IF NOT EXISTS compound_data (
     SMILES TEXT,
     InChIKey TEXT UNIQUE,
     InChI TEXT,
-    Formula TEXT,
-    InChIKey14 TEXT
+    Formula TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_inchikey ON compound_data(InChIKey);
-CREATE INDEX IF NOT EXISTS idx_inchikey14 ON compound_data(InChIKey14);
+CREATE INDEX IF NOT EXISTS idx_compound_inchikey14 ON compound_data(substr(InChIKey, 1, 14));
 
 CREATE TABLE IF NOT EXISTS processed_folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +24,6 @@ CACHE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cached_molecules (
     CID                INTEGER PRIMARY KEY,
     InChIKey           TEXT UNIQUE,
-    InChIKey14         TEXT,
     MolecularFormula   TEXT,
     InChI              TEXT,
     TPSA               REAL,
@@ -41,5 +39,5 @@ CREATE TABLE IF NOT EXISTS cached_molecules (
     fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
-CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(InChIKey14);
+CREATE INDEX IF NOT EXISTS idx_compound_inchikey14 ON compound_data(substr(InChIKey, 1, 14));
 """
