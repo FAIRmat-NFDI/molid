@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Fields used for processing SDF files (only a limited set)
 FIELDS_TO_EXTRACT: dict[str, str] = {
+    "CID": "PUBCHEM_COMPOUND_CID",
     "SMILES": "PUBCHEM_SMILES",
     "InChIKey": "PUBCHEM_IUPAC_INCHIKEY",
     "InChI": "PUBCHEM_IUPAC_INCHI",

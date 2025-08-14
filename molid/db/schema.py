@@ -4,7 +4,7 @@ Centralized SQL schema definitions for MolID's SQLite databases.
 
 OFFLINE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS compound_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    CID INTEGER PRIMARY KEY,
     SMILES TEXT,
     InChIKey TEXT UNIQUE,
     InChI TEXT,
@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS processed_folders (
 
 CACHE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cached_molecules (
-    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-    CID                INTEGER,
+    CID                INTEGER PRIMARY KEY,
     InChIKey           TEXT UNIQUE,
     InChIKey14         TEXT,
     MolecularFormula   TEXT,

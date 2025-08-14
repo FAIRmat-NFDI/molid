@@ -6,7 +6,7 @@ def fetch_molecule_data(
     id_type: str,
     id_value: str,
     properties: tuple = (
-        "Title", "IUPACName", "MolecularFormula", "InChI", "InChIKey",
+        "CID", "Title", "IUPACName", "MolecularFormula", "InChI", "InChIKey",
         "ConnectivitySMILES", "SMILES", "XLogP", "ExactMass",
         "MonoisotopicMass", "TPSA", "Complexity", "Charge"
     ),
