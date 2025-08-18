@@ -1,24 +1,46 @@
 import os
 import sys
 import logging
+from datetime import datetime, date
 from pathlib import Path
+import ftplib
 
 from molid.db.db_utils import (
     create_offline_db as init_db,
     save_to_database,
-    is_folder_processed,
-    mark_folder_as_processed,
+    get_archive_state,
+    upsert_archive_state,
 )
-from molid.pubchemproc.pubchem import download_and_process_file, FIELDS_TO_EXTRACT
+from molid.pubchemproc.pubchem import unpack_and_process_file
 from molid.utils.disk_utils import check_disk_space
-from molid.utils.ftp_utils import get_total_files_from_ftp, download_file_with_resume
-from molid.pubchemproc.file_handler import verify_md5
+from molid.utils.ftp_utils import (
+    FTP_SERVER,
+    get_changed_sdf_files,
+    download_file_with_resume,
+    remote_md5_path,
+)
+from molid.pubchemproc.file_handler import verify_md5, read_expected_md5
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_DOWNLOAD_FOLDER = 'downloads'
 DEFAULT_PROCESSED_FOLDER = 'processed'
 MAX_CONSECUTIVE_FAILURES = 3
+
+def _get_last_ingested_date(database_file: str) -> date | None:
+    """Return the most recent ingestion date stored in processed_archives (UTC)."""
+    from molid.db.sqlite_manager import DatabaseManager
+    db = DatabaseManager(database_file)
+    row = db.query_one(
+        "SELECT MAX(last_ingested) AS dt FROM processed_archives WHERE status = 'ingested'",
+        []
+    )
+    if row and row.get("dt"):
+        try:
+            return datetime.fromisoformat(row["dt"]).date()
+        except ValueError:
+            pass
+    return None
 
 def create_offline_db(db_file: str) -> None:
     """Initialize the offline master database schema."""
@@ -30,7 +52,7 @@ def update_database(
     download_folder: str = DEFAULT_DOWNLOAD_FOLDER,
     processed_folder: str = DEFAULT_PROCESSED_FOLDER,
 ) -> None:
-    """Update the master PubChem database by downloading and processing SDF files."""
+    """Update the master PubChem database from PubChem FULL snapshot, then Monthly deltas."""
     # Ensure schema exists
     init_db(database_file)
 
@@ -45,23 +67,41 @@ def update_database(
         logger.error(f"[ERROR] {e}")
         sys.exit(1)
 
-    # List and optionally limit files
-    sdf_files = get_total_files_from_ftp()
+    # Decide plan: first run -> FULL snapshot; otherwise -> MONTHLY since last ingest
+    last_dt = _get_last_ingested_date(database_file)
+    with ftplib.FTP(FTP_SERVER, timeout=60) as ftp:
+        ftp.login(user="anonymous", passwd="guest@example.com")
+        ftp.set_pasv(True)
+        plan = get_changed_sdf_files(ftp, since=last_dt)
     if max_files:
-        sdf_files = sdf_files[:max_files]
+        plan = plan[:max_files]
+    logger.info(
+        "Update plan: %s (%d archives)",
+        "FULL snapshot" if last_dt is None else f"MONTHLY since {last_dt.isoformat()}",
+        len(plan),
+    )
 
     consecutive_failures = 0
-    for file_name in sdf_files:
+    for remote_gz, remote_md5, source in plan:
+        file_name = Path(remote_gz).name
         try:
-            if is_folder_processed(database_file, file_name):
-                logger.info("Skipping already processed folder: %s", file_name)
-                consecutive_failures = 0
-                continue
+            logger.info("Processing: %s (%s)", file_name, source)
+             # If we already ingested this archive, compare remote MD5 — skip if unchanged
+            state = get_archive_state(database_file, file_name)
+            if state and state.get("status") == "ingested":
+                md5_local = download_file_with_resume(remote_md5, download_folder)
+                if not md5_local:
+                    logger.warning("Could not fetch MD5 for %s; will re-download anyway.", file_name)
+                else:
+                    new_md5 = read_expected_md5(Path(md5_local))
+                    if new_md5 and new_md5 == state.get("md5"):
+                        logger.info("Upstream MD5 unchanged, skipping: %s", file_name)
+                        consecutive_failures = 0
+                        continue
+                    logger.info("MD5 changed upstream; re-ingesting: %s", file_name)
 
-            logger.info("Processing file: %s", file_name)
-
-            # 1) Download the .gz
-            local_file = download_file_with_resume(file_name, download_folder)
+            # 1) Download .gz and .md5
+            local_file = download_file_with_resume(remote_gz, download_folder)
             if not local_file:
                 logger.warning("Download failed: %s", file_name)
                 consecutive_failures += 1
@@ -71,8 +111,7 @@ def update_database(
                 continue
 
             # 2) Download its .md5 companion
-            md5_name = f"{file_name}.md5"
-            md5_file = download_file_with_resume(md5_name, download_folder)
+            md5_file = download_file_with_resume(remote_md5, download_folder)
             if not md5_file:
                 logger.warning("Could not fetch MD5 for %s", file_name)
                 consecutive_failures += 1
@@ -90,11 +129,10 @@ def update_database(
                 consecutive_failures += 1
                 continue
 
-            success = download_and_process_file(
+            success = unpack_and_process_file(
                 file_name=file_name,
                 download_folder=download_folder,
                 processed_folder=processed_folder,
-                fields_to_extract=FIELDS_TO_EXTRACT,
                 process_callback=lambda data: save_to_database(
                     database_file,
                     data,
@@ -103,11 +141,24 @@ def update_database(
             )
 
             if success:
-                mark_folder_as_processed(database_file, file_name)
+                new_md5 = read_expected_md5(md5_path)
+                upsert_archive_state(
+                    database_file,
+                    file_name,
+                    status="ingested",
+                    source=source,
+                    md5=new_md5,
+                    last_ingested=datetime.utcnow().isoformat(timespec="seconds"),
+                    last_error=None,
+                )
                 logger.info("Completed: %s", file_name)
                 consecutive_failures = 0
             else:
                 logger.warning("Processing failed: %s", file_name)
+                upsert_archive_state(
+                    database_file, file_name, status="failed",
+                    source=source, last_error="processing failed"
+                )
                 consecutive_failures += 1
                 if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                     logger.error("Aborting after %d consecutive failures", MAX_CONSECUTIVE_FAILURES)
@@ -115,6 +166,10 @@ def update_database(
 
         except Exception as e:
             logger.error(f"[ERROR] Exception processing {file_name}: {e}")
+            upsert_archive_state(
+                database_file, file_name, status="failed",
+                source=source, last_error=str(e)
+            )
             consecutive_failures += 1
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                 logger.error("Aborting after %d consecutive exceptions", MAX_CONSECUTIVE_FAILURES)

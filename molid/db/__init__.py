@@ -1,6 +1,17 @@
-from .db_utils import is_folder_processed, mark_folder_as_processed, initialize_database, save_to_database
+# molid/db/__init__.py
 
-__all__ = ["initialize_database",
-           "save_to_database",
-           "is_folder_processed",
-           "mark_folder_as_processed"]
+from .db_utils import (
+    create_offline_db,
+    save_to_database,
+    get_archive_state,
+    upsert_archive_state,
+    initialize_database,  # optional: low-level schema init
+)
+
+__all__ = [
+    "create_offline_db",
+    "save_to_database",
+    "get_archive_state",
+    "upsert_archive_state",
+    "initialize_database",
+]

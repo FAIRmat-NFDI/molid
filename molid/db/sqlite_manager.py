@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -97,3 +97,14 @@ class DatabaseManager:
             conn.row_factory = sqlite3.Row
             cur = conn.execute(sql, params)
             return [dict(r) for r in cur.fetchall()]
+
+    def execute(self, sql: str, params: Sequence[Any] | None = None) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(sql, params or [])
+            conn.commit()
+
+    def executemany(self, sql: str, seq_of_params: Sequence[Sequence[Any]]) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.executemany(sql, seq_of_params)
+            conn.commit()
+

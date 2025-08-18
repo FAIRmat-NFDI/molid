@@ -10,7 +10,7 @@ from ase.io import read
 
 from molid.utils.conversion import atoms_to_inchikey
 from molid.search.service import SearchService, SearchConfig
-from molid.pubchemproc.pubchem import process_file, FIELDS_TO_EXTRACT
+from molid.pubchemproc.pubchem import process_file
 from molid.utils.settings import load_config, AppConfig
 
 
@@ -61,7 +61,7 @@ def search_from_file(file_path: str) -> tuple[list[dict[str, Any]], str]:
         atoms = read(str(p), format='xyz')
         return search_from_atoms(atoms)
     if ext == '.sdf':
-        records = process_file(str(p), FIELDS_TO_EXTRACT)
+        records = process_file(str(p))
         if not records or 'InChIKey' not in records[0]:
             raise ValueError(f"No InChIKey found in SDF: {file_path}")
         inchikey = records[0]['InChIKey']

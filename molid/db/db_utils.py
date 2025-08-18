@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from molid.db.sqlite_manager import DatabaseManager
 from molid.db.schema import OFFLINE_SCHEMA, CACHE_SCHEMA
@@ -25,30 +25,30 @@ def insert_dict_records(
     rows = [[rec.get(col) for col in columns] for rec in records]
     mgr.insert_many(table=table, columns=columns, rows=rows, ignore_conflicts=ignore_conflicts)
 
-def is_folder_processed(
-    database_file: str,
-    folder_name: str
-) -> bool:
-    """Check if a folder has already been processed."""
-    mgr = DatabaseManager(database_file)
-    return mgr.exists(
-        table="processed_folders",
-        where_clause="folder_name = ?",
-        params=[folder_name]
-    )
+# def is_folder_processed(
+#     database_file: str,
+#     folder_name: str
+# ) -> bool:
+#     """Check if a folder has already been processed."""
+#     mgr = DatabaseManager(database_file)
+#     return mgr.exists(
+#         table="processed_folders",
+#         where_clause="folder_name = ?",
+#         params=[folder_name]
+#     )
 
-def mark_folder_as_processed(
-    database_file: str,
-    folder_name: str
-) -> None:
-    """Mark a folder as processed."""
-    mgr = DatabaseManager(database_file)
-    mgr.insert_many(
-        table="processed_folders",
-        columns=["folder_name"],
-        rows=[[folder_name]],
-        ignore_conflicts=True
-    )
+# def mark_folder_as_processed(
+#     database_file: str,
+#     folder_name: str
+# ) -> None:
+#     """Mark a folder as processed."""
+#     mgr = DatabaseManager(database_file)
+#     mgr.insert_many(
+#         table="processed_folders",
+#         columns=["folder_name"],
+#         rows=[[folder_name]],
+#         ignore_conflicts=True
+#     )
 
 def initialize_database(
     db_file: str,
@@ -65,14 +65,48 @@ def create_cache_db(db_file: str) -> None:
     """Create or update the user-specific API cache database schema."""
     initialize_database(db_file, CACHE_SCHEMA)
 
-def save_to_database(
-    db_file: str,
-    data: list,
-    columns: list
-) -> None:
-    """Save extracted compound data into the offline database."""
+def upsert_archive_state(db_file: str, name: str, **fields: Any) -> None:
+    """
+    Upsert a row in processed_archives. Unknown keys go into a dynamic SET list.
+    """
+    db = DatabaseManager(db_file)
+    cols, vals = [], []
+    for k, v in fields.items():
+        cols.append(f"{k}=?")
+        vals.append(v)
+    sql = f"""
+    INSERT INTO processed_archives(archive_name, {", ".join(k for k in fields)})
+    VALUES (?, {", ".join("?" for _ in fields)})
+    ON CONFLICT(archive_name) DO UPDATE SET
+      {", ".join(cols)},
+      updated_at = CURRENT_TIMESTAMP;
+    """
+    db.execute(sql, [name, *vals])
+
+def get_archive_state(db_file: str, name: str) -> Optional[dict[str, Any]]:
+    db = DatabaseManager(db_file)
+    return db.query_one(
+        "SELECT * FROM processed_archives WHERE archive_name = ?",
+        [name]
+    )
+
+def save_to_database(db_file: str, data: list[dict], columns: list[str]) -> None:
     if not data or not columns:
         logger.info("No data to save into '%s'.", db_file)
         return
-    records = [{col: entry.get(col) for col in columns} for entry in data]
-    insert_dict_records(db_file, table="compound_data", records=records, ignore_conflicts=True)
+
+    db = DatabaseManager(db_file)
+    # Build a parameterized UPSERT that updates all non-key columns
+    nonkey = [c for c in columns if c != "CID"]
+    insert_cols = ", ".join(columns)
+    placeholders = ", ".join("?" for _ in columns)
+    set_clause = ", ".join(f"{c}=excluded.{c}" for c in nonkey)
+
+    sql = f"""
+    INSERT INTO compound_data ({insert_cols})
+    VALUES ({placeholders})
+    ON CONFLICT(CID) DO UPDATE SET
+      {set_clause};
+    """
+    params = [[row.get(c) for c in columns] for row in data]
+    db.executemany(sql, params)
