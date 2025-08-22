@@ -70,18 +70,24 @@ def upsert_archive_state(db_file: str, name: str, **fields: Any) -> None:
     Upsert a row in processed_archives. Unknown keys go into a dynamic SET list.
     """
     db = DatabaseManager(db_file)
-    cols, vals = [], []
-    for k, v in fields.items():
-        cols.append(f"{k}=?")
-        vals.append(v)
+
+    # Build dynamic column and placeholder lists
+    cols = list(fields.keys())
+    insert_cols = ", ".join(["archive_name"] + cols)
+    insert_placeholders = ", ".join(["?"] + ["?"] * len(cols))
+
+    # Use excluded.<col> so we don't need extra parameters in the UPDATE
+    set_clause = ", ".join(f"{c}=excluded.{c}" for c in cols)
+
     sql = f"""
-    INSERT INTO processed_archives(archive_name, {", ".join(k for k in fields)})
-    VALUES (?, {", ".join("?" for _ in fields)})
+    INSERT INTO processed_archives ({insert_cols})
+    VALUES ({insert_placeholders})
     ON CONFLICT(archive_name) DO UPDATE SET
-      {", ".join(cols)},
+      {set_clause},
       updated_at = CURRENT_TIMESTAMP;
     """
-    db.execute(sql, [name, *vals])
+    params = [name] + [fields[c] for c in cols]
+    db.execute(sql, params)
 
 def get_archive_state(db_file: str, name: str) -> Optional[dict[str, Any]]:
     db = DatabaseManager(db_file)

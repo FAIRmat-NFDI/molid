@@ -2,27 +2,50 @@ from __future__ import annotations
 
 import click
 import json
+import logging
+from logging import StreamHandler, FileHandler, Formatter
 
 from molid.db.offline_db_cli import create_offline_db, update_database, use_database
 from molid.search.service import SearchService, SearchConfig
 from molid.utils.settings import load_config, save_config
 
+def _setup_logging(level: str, logfile: str | None) -> None:
+    lvl = getattr(logging, level.upper(), logging.INFO)
+    root = logging.getLogger()
+    root.setLevel(lvl)
+    # Clear default handlers if any
+    for h in list(root.handlers):
+        root.removeHandler(h)
+    fmt = Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    sh = StreamHandler()
+    sh.setFormatter(fmt)
+    root.addHandler(sh)
+    if logfile:
+        fh = FileHandler(logfile, encoding="utf-8")
+        fh.setFormatter(fmt)
+        root.addHandler(fh)
+
 @click.group()
-def cli() -> None:
+@click.option("--log-level", type=click.Choice(["DEBUG","INFO","WARNING","ERROR","CRITICAL"]),
+              default="INFO", show_default=True,
+              help="Set logging verbosity.")
+@click.option("--log-file", type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Also write logs to this file.")
+def cli(log_level: str, log_file: str | None) -> None:
     """MolID: PubChem data downloader & search tool"""
-    pass
+    _setup_logging(log_level, log_file)
 
 @cli.group()
 def config() -> None:
     """Manage MolID configuration"""
     pass
 
-@config.command("set-db")
+@config.command("set-master")
 @click.argument("db_path", type=click.Path())
 def set_db(db_path: str) -> None:
     """Set default master database path."""
     save_config(master_db=db_path)
-    click.echo(f"✔ Default master_db set to: {db_path}")
+    click.echo(f"Default master_db set to: {db_path}")
 
 @config.command("set-mode")
 @click.argument(
@@ -44,6 +67,13 @@ def show_cfg() -> None:
     """Show current MolID configuration."""
     cfg = load_config()
     click.echo(json.dumps(cfg.dict(), indent=2))
+
+@config.command("set-cache")
+@click.argument("db_path", type=click.Path())
+def set_cache(db_path: str) -> None:
+    """Set default cache database path."""
+    save_config(cache_db=db_path)
+    click.echo(f"Default cache_db set to: {db_path}")
 
 @cli.group()
 def db() -> None:

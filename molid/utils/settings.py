@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from appdirs import user_cache_dir, user_data_dir
 from pathlib import Path
 
 from pydantic import Field
@@ -16,11 +17,11 @@ class AppConfig(BaseSettings):
     Persists overrides in ~/.molid.env
     """
     master_db: str = Field(
-        "pubchem_data_FULL.db",
+        str(Path(user_data_dir("molid")) / "master" / "pubchem_master.db"),
         description="Path to the master PubChem database"
         )
     cache_db: str = Field(
-        "pubchem_cache.db",
+        str(Path(user_data_dir("molid")) / "cache" / "pubchem_cache.db"),
         description="Path to the PubChem cache database"
         )
     mode: Literal[

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS compound_data (
     MolecularWeight     REAL,
     MonoisotopicMass    REAL,
     SMILES              TEXT,
-    InChIKey            TEXT UNIQUE,
+    InChIKey            TEXT,
     InChI               TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_inchikey ON compound_data(InChIKey);
