@@ -89,7 +89,8 @@ MolID uses Pydantic `BaseSettings` with environment variables (or `~/.molid.env`
 You can also configure interactively:
 
 ```bash
-molid config set-db /path/to/master.db
+molid config set-master /path/to/master.db
+molid config set-cache /path/to/cache.db
 molid config set-mode offline-basic
 molid config show
 ```

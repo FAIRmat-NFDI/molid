@@ -77,7 +77,7 @@ class DatabaseManager:
         self,
         sql: str,
         params: list[Any] = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         """Return a single row as a dict, or None if not found."""
         params = params or []
         with sqlite3.connect(self.db_path) as conn:

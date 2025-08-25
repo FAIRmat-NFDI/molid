@@ -43,7 +43,14 @@ def process_file(
             if line.startswith("> <"):
                 property_name = line[3:-1]
                 if property_name in FIELDS_TO_EXTRACT.values():
-                    value = file.readline().strip()
+                    # Read all lines until a blank line (multi-line SDF field)
+                    value_lines = []
+                    for vline in file:
+                        vline = vline.rstrip("\n")
+                        if vline == "":
+                            break
+                        value_lines.append(vline)
+                    value = "\n".join(value_lines).strip()
                     key = [k for k, v in FIELDS_TO_EXTRACT.items() if v == property_name][0]
                     compound_data[key] = value
             elif line == "$$$$":

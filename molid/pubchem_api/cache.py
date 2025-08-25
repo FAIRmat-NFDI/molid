@@ -48,7 +48,7 @@ def get_cached_or_fetch(
     cache_db_file: str,
     id_type: str,
     id_value: str,
-) -> tuple[dict[str, Any], bool]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Checks for a cached molecule; if not found, fetches data via the API
     and stores it.

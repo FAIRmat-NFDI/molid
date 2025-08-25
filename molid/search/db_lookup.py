@@ -15,13 +15,11 @@ OFFLINE_TABLE_MASTER = 'compound_data'
 _CACHE_FIELDS: dict[str, str] = {
     'cid': 'CID',
     'inchikey': 'InChIKey',
-    'inchikey14': 'InChIKey14',
     'molecularformula': 'MolecularFormula',
     'inchi': 'InChI',
     'tpsa': 'TPSA',
     'charge': 'Charge',
-    'smiles': 'CanonicalSMILES',
-    'isomericsmiles': 'IsomericSMILES',
+    'smiles': 'SMILES',
     'name': 'Title',
     'iupacname': 'IUPACName',
     'xlogp': 'XLogP',
@@ -61,6 +59,9 @@ def basic_offline_search(
         "it ignores stereochemistry (and isotopic labels), so results may be ambiguous.",
         UserWarning)
         return [result]
+
+    # No match
+    return []
 
 
 def advanced_search(

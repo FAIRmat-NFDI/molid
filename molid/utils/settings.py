@@ -28,11 +28,16 @@ class AppConfig(BaseSettings):
         "offline-basic",
         "offline-advanced",
         "online-only",
-        "online-cached"
+        "online-cached",
+        "auto"
         ] = Field(
             "online-cached",
             description="Search mode"
             )
+    auto_priority: list[str] = Field(
+        default_factory=lambda: ["offline-basic", "online-cached", "online-only"],
+        description="Fallback order when mode=='auto'"
+    )
     download_folder: str = Field(
         str(Path(user_cache_dir("molid")) / "downloads"),
         description="Where to cache PubChem SDF archives"

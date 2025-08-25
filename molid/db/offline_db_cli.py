@@ -88,7 +88,7 @@ def update_database(
 
     consecutive_failures = 0
     with click.progressbar(plan, label="Ingesting archives", show_percent=True) as bar:
-        for remote_gz, remote_md5, source in plan:
+        for remote_gz, remote_md5, source in bar:
             file_name = Path(remote_gz).name
             try:
                 logger.info("Processing: %s (%s)", file_name, source)
@@ -160,6 +160,13 @@ def update_database(
                         last_ingested=datetime.utcnow().isoformat(timespec="seconds"),
                         last_error=None,
                     )
+                    # optional housekeeping: remove checksum file
+                    try:
+                        if md5_path.exists():
+                            md5_path.unlink()
+                    except Exception:
+                        logger.debug("Could not remove md5 file: %s", md5_path)
+
                     logger.info("Completed: %s", file_name)
                     consecutive_failures = 0
                 else:

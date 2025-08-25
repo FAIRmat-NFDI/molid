@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import io
 import os
+import logging
+
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,7 @@ from molid.search.service import SearchService, SearchConfig
 from molid.pubchemproc.pubchem import process_file
 from molid.utils.settings import load_config, AppConfig
 
+logger = logging.getLogger(__name__)
 
 def _create_search_service() -> SearchService:
     """
@@ -57,9 +60,15 @@ def search_from_file(file_path: str) -> tuple[list[dict[str, Any]], str]:
     if not p.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
     ext = p.suffix.lower()
-    if ext in ['.xyz', '.extxyz']:
+
+    if ext == '.xyz':
         atoms = read(str(p), format='xyz')
         return search_from_atoms(atoms)
+
+    if ext == '.extxyz':
+        atoms = read(str(p), format='extxyz')
+        return search_from_atoms(atoms)
+
     if ext == '.sdf':
         records = process_file(str(p))
         if not records or 'InChIKey' not in records[0]:
@@ -99,7 +108,7 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
             atoms = read(io.StringIO(data), format='xyz')
             return search_from_atoms(atoms)
         except Exception as e:
-            print(e)
+            logger.debug("Failed to parse raw XYZ content: %s", e)
             pass
 
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
@@ -109,20 +118,11 @@ def _sanity_check(
     cache_db: str,
     mode: str
 ) -> None:
-    if mode not in (
-        "offline-basic", "offline-advanced",
-        "online-only", "online-cached"
-    ):
-        raise ValueError(
-            f'{mode} is no valid search mode. Select on of "offline-basic", "offline-advanced", "online-only", "online-cached"'
-        )
-    p_master_db = Path(master_db)
-    if mode == "offline-basic" and not p_master_db.exists():
-        raise FileNotFoundError(
-            f"File not found: {master_db}. Master DB needed for {mode}"
-        )
-    p_cache_db = Path(cache_db)
-    if mode == "offline-advanced" and not p_cache_db.exists():
-        raise FileNotFoundError(
-            f"File not found: {p_cache_db}. Cache DB needed for {mode}"
-        )
+    allowed = {"offline-basic", "offline-advanced", "online-only", "online-cached", "auto"}
+    if mode not in allowed:
+        raise ValueError(f'{mode} is no valid search mode. Select one of {", ".join(sorted(allowed))}')
+    # keep the existing file-present checks ONLY for explicit offline modes
+    if mode == "offline-basic" and not Path(master_db).exists():
+        raise FileNotFoundError(f"File not found: {master_db}. Master DB needed for {mode}")
+    if mode == "offline-advanced" and not Path(cache_db).exists():
+        raise FileNotFoundError(f"File not found: {cache_db}. Cache DB needed for {mode}")

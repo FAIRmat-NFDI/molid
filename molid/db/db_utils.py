@@ -18,7 +18,7 @@ def insert_dict_records(
     Insert a list of dict records into `table` in the given sqlite file.
     """
     if not records:
-        logger.info("No records to insert into '%s'.", db_file)
+        logger.info("No records to insert into table '%s' (db=%s).", table, db_file)
         return
     mgr = DatabaseManager(db_file)
     columns = list(records[0].keys())

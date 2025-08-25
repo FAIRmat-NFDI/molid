@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import requests
+from typing import Any
+from urllib.parse import quote
+
 
 def fetch_molecule_data(
     id_type: str,
@@ -10,7 +13,7 @@ def fetch_molecule_data(
         "ConnectivitySMILES", "SMILES", "XLogP", "ExactMass",
         "MonoisotopicMass", "TPSA", "Complexity", "Charge"
     ),
-) -> dict:
+) -> list[dict[str, Any]]:
     """
     Fetch molecule data from the PubChem API.
     Requests a set of standard properties including:
@@ -22,12 +25,13 @@ def fetch_molecule_data(
 
     # Join and URL‐encode the property list
     props_str = ",".join(properties)
+    safe_value = quote(str(id_value), safe="")
     url = (
         f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
-        f"{ns}/{id_value}/property/{props_str}/JSON"
+        f"{ns}/{safe_value}/property/{props_str}/JSON"
     )
 
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
     data = resp.json().get("PropertyTable", {}).get("Properties", [])
-    return data if data else {}
+    return data if data else []
