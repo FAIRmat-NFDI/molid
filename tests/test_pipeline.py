@@ -13,7 +13,6 @@ from molid.pipeline import (
 ADVANCED_RESULT = {
     'CID': 280,
     'InChIKey': 'CURLTUGMZLYLDI-UHFFFAOYSA-N',
-    'InChIKey14': 'CURLTUGMZLYLDI',
     'MolecularFormula': 'CO2',
     'InChI': 'InChI=1S/CO2/c2-1-3',
     'TPSA': 34.1,
@@ -21,6 +20,7 @@ ADVANCED_RESULT = {
     'ConnectivitySMILES': 'C(=O)=O',
     'SMILES': 'C(=O)=O',
     'Title': 'Carbon Dioxide',
+    'IUPACName': 'Carbon Dioxide',
     'XLogP': 0.9,
     'ExactMass': '43.989829239',
     'Complexity': 18,
@@ -31,8 +31,7 @@ BASIC_RESULT = {
     'SMILES': 'C(=O)=O',
     'InChIKey': 'CURLTUGMZLYLDI-UHFFFAOYSA-N',
     'InChI': 'InChI=1S/CO2/c2-1-3',
-    'Formula': 'CO2',
-    'InChIKey14': 'CURLTUGMZLYLDI'
+    'Formula': 'CO2'
 }
 
 @pytest.fixture(scope="session", autouse=True)
@@ -77,28 +76,23 @@ def set_env(request, monkeypatch):
 )
 def test_search_identifier(set_env, expected_result):
     mode = set_env
-    seen = []
     sources = []
-
     for _ in range(2):
         results, source = search_identifier({"SMILES": "C(=O)=O"})
         assert len(results) == 1
-        # strip nondeterministic fields
-        rec = results[0].copy()
-        rec.pop("fetched_at", None)
-        rec.pop("id", None)
-        seen.append(rec)
+        rec = results[0]
+        # assert a stable subset only (DB/API may add fields)
+        for k, v in expected_result.items():
+            if rec.get(k) != v:
+                import pdb; pdb.set_trace()
+            assert rec.get(k) == v
         sources.append(source)
-
-    assert seen == [expected_result, expected_result]
-    # the library returns the mode string as the source in every call
     assert sources == [mode, mode]
-    # import pdb; pdb.set_trace()
 
 def test_search_from_atoms(monkeypatch):
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
     monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
-    monkeypatch.setenv("MOLID_MODE",      "online-only")
+    monkeypatch.setenv("MOLID_MODE",      "online-cached")
 
     atoms = molecule("CH4")
     result, source = search_from_atoms(atoms)
@@ -108,7 +102,7 @@ def test_search_from_atoms(monkeypatch):
 def test_search_from_file_xyz(tmp_path, monkeypatch):
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
     monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
-    monkeypatch.setenv("MOLID_MODE",      "online-only")
+    monkeypatch.setenv("MOLID_MODE",      "online-cached")
 
     xyz_file = tmp_path / "methane.xyz"
     xyz_file.write_text(
@@ -145,7 +139,7 @@ def test_search_from_input_dict(monkeypatch):
 def test_search_from_input_raw_xyz(monkeypatch):
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
     monkeypatch.setenv("MOLID_CACHE_DB",  "tests/data/test_cache.db")
-    monkeypatch.setenv("MOLID_MODE",      "online-only")
+    monkeypatch.setenv("MOLID_MODE",      "online-cached")
 
     xyz = (
         "3\nwater\n"

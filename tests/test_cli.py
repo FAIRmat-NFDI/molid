@@ -22,7 +22,7 @@ def test_db_create_creates_sqlite_file(tmp_path, runner):
     cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = {row[0] for row in cursor.fetchall()}
     assert "compound_data" in tables
-    assert "processed_folders" in tables
+    assert "processed_archives" in tables
     conn.close()
 
 
@@ -50,9 +50,9 @@ def test_search_offline_basic_found(tmp_path, runner):
     # insert record
     conn = sqlite3.connect(db_file)
     inchikey = "ABCDEF1234567890"
-    data = ("C", inchikey, "InChI=1S/C", "C", inchikey[:14])
+    data = ("C", inchikey, "InChI=1S/C", "C")
     conn.execute(
-        "INSERT INTO compound_data (SMILES, InChIKey, InChI, Formula, InChIKey14) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO compound_data (SMILES, InChIKey, InChI, Formula) VALUES (?, ?, ?, ?)",
         data
     )
     conn.commit()

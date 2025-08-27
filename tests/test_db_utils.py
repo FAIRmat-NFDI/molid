@@ -10,12 +10,25 @@ def test_create_offline_and_cache_dbs(tmp_path):
         "SELECT name FROM sqlite_master WHERE type='table';")]
     names2 = [r[0] for r in sqlite3.connect(cache).execute(
         "SELECT name FROM sqlite_master WHERE type='table';")]
-    assert "compound_data" in names1 and "processed_folders" in names1
+    assert "compound_data" in names1 and "processed_archives" in names1
     assert "cached_molecules" in names2
 
-def test_mark_and_check_folder(tmp_path):
+def test_upsert_and_get_archive_state(tmp_path):
     off = tmp_path/"off2.db"
     db_utils.create_offline_db(str(off))
-    assert not db_utils.is_folder_processed(str(off), "foo")
-    db_utils.mark_folder_as_processed(str(off), "foo")
-    assert db_utils.is_folder_processed(str(off), "foo")
+    # Initially not present
+    state = db_utils.get_archive_state(str(off), "2025-07-01.sdf.gz")
+    assert state is None
+    # Upsert an ingested archive record
+    db_utils.upsert_archive_state(
+        str(off),
+        "2025-07-01.sdf.gz",
+        status="ingested",
+        source="monthly",
+        md5="abc123",
+        last_ingested="2025-07-31T12:34:56"
+    )
+    state = db_utils.get_archive_state(str(off), "2025-07-01.sdf.gz")
+    assert state is not None
+    assert state["status"] == "ingested"
+    assert state["md5"] == "abc123"

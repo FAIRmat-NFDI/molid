@@ -230,11 +230,21 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        id_type, id_value = self._preprocess_input(input, 'advanced')
+        # Use the identifier as-is for live API calls (no pre-conversion to InChIKey).
+        if not isinstance(input, dict) or len(input) != 1:
+            raise ValueError("Expected a single identifier for online-only mode.")
+        id_type = next(iter(input)).lower()
+        id_value = next(iter(input.values()))
+
+        # Optional tiny alias if you ever pass 'molecularformula' (PubChem uses 'formula')
+        ns_map = {"molecularformula": "formula"}
+        id_type = ns_map.get(id_type, id_type)
+
         data = fetch_molecule_data(id_type, id_value)
         if not data:
-            raise MoleculeNotFound(f"No PubChem results for {id_type, id_value}.")
+            raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value!r}.")
         return data, self.cfg.mode
+
 
     def _search_online_cached(
         self,

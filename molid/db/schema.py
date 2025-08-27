@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS cached_molecules (
     Title              TEXT,
     IUPACName          TEXT,
     XLogP              REAL,
-    ExactMass          REAL,
+    ExactMass          TEXT,
     Complexity         INTEGER,
     MonoisotopicMass   TEXT,
     SMILES     TEXT,
