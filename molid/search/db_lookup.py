@@ -15,6 +15,7 @@ OFFLINE_TABLE_MASTER = 'compound_data'
 _CACHE_FIELDS: dict[str, str] = {
     'cid': 'CID',
     'inchikey': 'InChIKey',
+    'cas': 'CAS',
     'molecularformula': 'MolecularFormula',
     'inchi': 'InChI',
     'tpsa': 'TPSA',

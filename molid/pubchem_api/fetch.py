@@ -38,9 +38,39 @@ def _ns_for_id_type(id_type: str) -> str:
         "name": "name",
         "molecularformula": "formula",
         # special cases
-        "cas": "xrefs/rn",
+        "cas": "xref/rn",
     }.get(t, t)
 
+def _fetch_cas_rn_by_cid(cid: int) -> list[str]:
+    """
+    Return a list of CAS Registry Numbers (RN) associated with a CID using PUG xrefs.
+    """
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/xrefs/RN/JSON"
+    r = requests.get(url, timeout=_TIMEOUT)
+    if not r.ok:
+        return []
+    try:
+        info = r.json().get("InformationList", {}).get("Information", [])
+        if not info:
+            return []
+        rns = info[0].get("RN") or []
+        if isinstance(rns, str):
+            return [rns]
+        return [s for s in rns if isinstance(s, str)]
+    except Exception:
+        return []
+
+def _is_cas_rn(candidate: str) -> bool:
+    """
+    Validate CAS RN checksum (NNNNNNN-NN-N). Keeps parity with v2.py logic.
+    """
+    import re
+    m = re.fullmatch(r"(?P<p1>\d{2,7})-(?P<p2>\d{2})-(?P<check>\d{1})", candidate or "")
+    if not m:
+        return False
+    digits = (m.group('p1') + m.group('p2'))[::-1]
+    checksum = sum(int(c) * (i + 1) for i, c in enumerate(digits)) % 10
+    return checksum == int(m.group('check'))
 
 def _resolve_to_cids(id_type: str, id_value: str) -> list[int]:
     ns = _ns_for_id_type(id_type)
@@ -111,12 +141,12 @@ def _fetch_iupac_from_pugview(cid: int) -> str | None:
     def _from_info(info: dict) -> str | None:
         val = info.get("Value") or {}
         swm = val.get("StringWithMarkup")
+        s = ""
         if isinstance(swm, list) and swm and isinstance(swm[0], dict):
             s = (swm[0].get("String") or "").strip()
             if s:
                 return s
-        if s:
-            return s
+
         # StringList (pick first non-empty)
         sl = val.get("StringList") or []
         if isinstance(sl, list):
@@ -171,6 +201,16 @@ def fetch_molecule_data(
                 iupac = _fetch_iupac_from_pugview(cid_int)
                 if iupac:
                     rec["IUPACName"] = iupac
+            # Enrich with CAS if available
+            rns = _fetch_cas_rn_by_cid(cid_int)
+            if rns:
+                # Prefer a syntactically valid RN; store the first valid one
+                for rn in rns:
+                    if _is_cas_rn(rn):
+                        rec["CAS"] = rn
+                        break
+                # Fallback to first if none validate strictly
+                rec.setdefault("CAS", rns[0])
         return props
 
     # Resolve -> CID(s)
@@ -191,4 +231,15 @@ def fetch_molecule_data(
             elif rec.get("Title"):
                 # Final safeguard: prefer a non-empty value instead of None
                 rec["IUPACName"] = rec["Title"]
+        # Enrich with CAS if possible
+        rns = _fetch_cas_rn_by_cid(cid)
+        if rns:
+            for rn in rns:
+                if _is_cas_rn(rn):
+                    rec["CAS"] = rn
+                    break
+            rec.setdefault("CAS", rns[0])
+        # If query was by CAS, ensure we preserve it even if xrefs has multiple
+        if id_type_lc == "cas":
+            rec.setdefault("CAS", str(id_value))
     return props

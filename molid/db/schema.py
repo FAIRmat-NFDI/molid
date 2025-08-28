@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS processed_archives (
 CACHE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cached_molecules (
     CID                INTEGER PRIMARY KEY,
-    InChIKey           TEXT UNIQUE,
+    InChIKey           TEXT,
     MolecularFormula   TEXT,
     InChI              TEXT,
     TPSA               REAL,
@@ -44,8 +44,11 @@ CREATE TABLE IF NOT EXISTS cached_molecules (
     ExactMass          TEXT,
     Complexity         INTEGER,
     MonoisotopicMass   TEXT,
-    SMILES     TEXT,
+    SMILES             TEXT,
+    CAS                TEXT,
     fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
+CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(substr(InChIKey, 1, 14));
+CREATE INDEX IF NOT EXISTS idx_cache_cas ON cached_molecules(CAS);
 """

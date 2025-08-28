@@ -155,7 +155,8 @@ def db_use(db_path: str | None) -> None:
         "smiles",
         "cid",
         "name",
-        "molecularformula"
+        "molecularformula",
+        "cas"
     ]),
     default="inchikey",
 )

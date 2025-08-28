@@ -6,7 +6,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
-from appdirs import user_cache_dir, user_data_dir
 
 # Persisted env-file in the user's home directory
 ENV_FILE = Path.home() / ".molid.env"

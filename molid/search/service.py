@@ -118,11 +118,6 @@ class SearchService:
                         logger.debug("AUTO: skip %s (no master DB at %s)", mode, self.master_db)
                         continue
 
-                elif mode == "offline-advanced":
-                    if not os.path.isfile(self.cache_db):
-                        logger.debug("AUTO: skip %s (no cache DB at %s)", mode, self.cache_db)
-                        continue
-
                 elif mode == "online-cached":
                     # Ensure cache dir is writable (schema created lazily inside the mode)
                     cache_dir = os.path.dirname(self.cache_db) or "."
@@ -181,7 +176,7 @@ class SearchService:
         if mode == 'basic':
             id_types = ("inchikey", "inchi", "smiles")
         elif mode == 'advanced':
-            id_types = ('cid', 'name', 'smiles', 'inchi', 'inchikey', 'molecularformula')
+            id_types = ('cid', 'name', 'smiles', 'inchi', 'inchikey', 'molecularformula', 'cas')
 
         id_type = list(input.keys())[0]
         id_value = list(input.values())[0]
