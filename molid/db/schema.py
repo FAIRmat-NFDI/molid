@@ -13,10 +13,24 @@ CREATE TABLE IF NOT EXISTS compound_data (
     MonoisotopicMass    REAL,
     SMILES              TEXT,
     InChIKey            TEXT,
-    InChI               TEXT
+    InChI               TEXT,
+    CAS                 TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_inchikey ON compound_data(InChIKey);
 CREATE INDEX IF NOT EXISTS idx_compound_inchikey14 ON compound_data(substr(InChIKey, 1, 14));
+
+CREATE TABLE IF NOT EXISTS cas_mapping (
+    CAS         TEXT NOT NULL,
+    CID         INTEGER NOT NULL,
+    source      TEXT,                     -- 'xref' (authoritative) or 'synonym' (heuristic)
+    confidence  INTEGER,                  -- 2=checksum-valid RN, 1=weaker
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (CAS, CID),
+    FOREIGN KEY (CID) REFERENCES compound_data(CID)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cas_mapping_cas ON cas_mapping(CAS);
+CREATE INDEX IF NOT EXISTS idx_cas_mapping_cid ON cas_mapping(CID);
 
 CREATE TABLE IF NOT EXISTS processed_archives (
     archive_name   TEXT PRIMARY KEY,

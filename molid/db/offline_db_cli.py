@@ -21,6 +21,7 @@ from molid.utils.ftp_utils import (
     remote_md5_path,
 )
 from molid.pubchemproc.file_handler import verify_md5, read_expected_md5
+from molid.db.cas_enrich import enrich_cas_for_cids
 
 logger = logging.getLogger(__name__)
 
@@ -197,3 +198,36 @@ def use_database(db_file: str) -> None:
         logger.error("Database file '%s' not found.", db_file)
         sys.exit(1)
     logger.info("Using database: %s", db_file)
+
+def enrich_cas_database(
+    database_file: str,
+    from_cid: int | None = None,
+    limit: int | None = None,
+    use_synonyms: bool = False,
+    sleep_s: float = 0.2,
+    timeout_s: float = 30.0,
+    retries: int = 3,
+):
+    """
+    Enrich cas_mapping for a slice of CIDs from compound_data.
+    """
+    from molid.db.sqlite_manager import DatabaseManager
+    db = DatabaseManager(database_file)
+    where = "WHERE CID >= ?" if from_cid is not None else ""
+    params = [from_cid] if from_cid is not None else []
+    lim = f"LIMIT {int(limit)}" if limit else ""
+    rows = db.query_all(f"SELECT CID FROM compound_data {where} ORDER BY CID {lim}", params)
+    cids = [r["CID"] for r in rows]
+    if not cids:
+        logger.info("No CIDs to enrich.")
+        return
+    logger.info("Enriching CAS for %d CIDs (use_synonyms=%s)", len(cids), use_synonyms)
+    added = enrich_cas_for_cids(
+        database_file,
+        cids,
+        sleep_s=sleep_s,
+        use_synonyms=use_synonyms,
+        timeout_s=timeout_s,
+        retries=retries
+    )
+    logger.info("CAS enrichment complete: %d (CAS,CID) rows inserted.", added)

@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_TABLE = 'cached_molecules'
 OFFLINE_TABLE_MASTER = 'compound_data'
+OFFLINE_TABLE_CAS    = 'cas_mapping'
 
 _CACHE_FIELDS: dict[str, str] = {
     'cid': 'CID',
@@ -64,6 +65,17 @@ def basic_offline_search(
     # No match
     return []
 
+def master_lookup_by_cas(offline_db_file: str, cas: str) -> list[dict[str, Any]]:
+    """Return rows from compound_data joined via cas_mapping for the given CAS."""
+    if not os.path.exists(offline_db_file):
+        logger.debug("Offline DB not found at %s", offline_db_file)
+        return []
+    db = DatabaseManager(offline_db_file)
+    sql = (f"SELECT cd.* FROM {OFFLINE_TABLE_CAS} cm "
+           f"JOIN {OFFLINE_TABLE_MASTER} cd ON cd.CID = cm.CID "
+           f"WHERE cm.CAS = ? ORDER BY cm.confidence DESC")
+    rows = db.query_all(sql, [cas])
+    return rows or []
 
 def advanced_search(
     db_file: str,

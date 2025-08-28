@@ -5,7 +5,7 @@ import json
 import logging
 from logging import StreamHandler, FileHandler, Formatter
 
-from molid.db.offline_db_cli import create_offline_db, update_database, use_database
+from molid.db.offline_db_cli import create_offline_db, update_database, use_database, enrich_cas_database
 from molid.search.service import SearchService, SearchConfig
 from molid.utils.settings import load_config, save_config
 
@@ -145,6 +145,31 @@ def db_use(db_path: str | None) -> None:
         raise click.UsageError("No DB path set; use `molid config set-master` or `--db-file`.")
     use_database(path)
     click.echo(f"Using master database: {path}")
+
+@db.command("enrich-cas")
+@click.option("--db-file", "db_path", default=None, type=str, help="Path to master DB")
+@click.option("--from-cid", type=int, default=None, help="Start from this CID (inclusive)")
+@click.option("--limit", type=int, default=None, help="Max number of CIDs to enrich")
+@click.option("--synonyms/--no-synonyms", default=False, help="Also mine CAS from synonyms (validated)")
+@click.option("--sleep", "sleep_s", type=float, default=0.2, help="Delay between API calls (s)")
+@click.option("--timeout", "timeout_s", type=float, default=30.0, help="HTTP timeout (s)")
+@click.option("--retries", type=int, default=3, help="HTTP retries for transient failures")
+def db_enrich_cas(db_path: str | None, from_cid: int | None, limit: int | None, synonyms: bool, sleep_s: float, timeout_s: float, retries: int):
+    """Backfill CAS↔CID mapping into the master DB via PubChem xref/RN (and optional synonyms)."""
+    cfg = load_config()
+    path = db_path or cfg.master_db
+    if not path:
+        raise click.UsageError("No DB path set; use `molid config set-master` or `--db-file`.")
+    enrich_cas_database(
+        database_file=path,
+        from_cid=from_cid,
+        limit=limit,
+        use_synonyms=synonyms,
+        sleep_s=sleep_s,
+        timeout_s=timeout_s,
+        retries=retries
+    )
+    click.echo(f"CAS enrichment completed for {path}")
 
 @cli.command("search")
 @click.argument("identifier", type=str)
