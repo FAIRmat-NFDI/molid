@@ -5,12 +5,12 @@ import logging
 from dataclasses import dataclass
 
 from collections.abc import Callable
-from typing import Any, Iterable
+from typing import Any
 
 from molid.search.db_lookup import basic_offline_search
-from molid.pubchem_api.cache import get_cached_or_fetch
+from molid.pubchemproc.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db
-from molid.pubchem_api.fetch import fetch_molecule_data
+from molid.pubchemproc.fetch import fetch_molecule_data
 from molid.utils.conversion import convert_to_inchikey
 from molid.search.db_lookup import advanced_search
 

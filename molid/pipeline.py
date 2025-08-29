@@ -102,14 +102,21 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
     if isinstance(data, Path) and data.is_file():
         return search_from_file(str(data))
 
+
     # Raw XYZ content
     if isinstance(data, str):
-        try:
-            atoms = read(io.StringIO(data), format='xyz')
-            return search_from_atoms(atoms)
-        except Exception as e:
-            logger.debug("Failed to parse raw XYZ content: %s", e)
-            pass
+        # Try xyz first, then fall back to extxyz (some writers emit minor variants)
+        for fmt in ("xyz", "extxyz"):
+            try:
+                atoms = read(io.StringIO(data), format=fmt)
+                return search_from_atoms(atoms)
+            except Exception as e:
+                logger.debug("Failed to parse raw XYZ as %s: %s", fmt, e)
+        raise ValueError(
+            "Could not parse the provided string as XYZ/EXTXYZ content. "
+            "Provide an ASE Atoms, a file path (.xyz/.extxyz/.sdf), raw XYZ text, or an identifier dict."
+    )
+
 
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
 

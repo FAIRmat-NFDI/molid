@@ -74,7 +74,7 @@ def get_cached_or_fetch(
     if cached:
         return cached, True
 
-    from molid.pubchem_api.fetch import fetch_molecule_data
+    from molid.pubchemproc.fetch import fetch_molecule_data
     api_data = fetch_molecule_data(id_type, id_value)
     stored = store_cached_data(cache_db_file, id_type, id_value, api_data)
     return stored, False

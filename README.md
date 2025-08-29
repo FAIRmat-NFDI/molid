@@ -113,11 +113,9 @@ MolID/                       # Project root
 │   │   ├── ftp_utils.py     # FTP download logic
 │   │   ├── settings.py      # Configuration via Pydantic
 │   │   └── __init__.py
-│   ├── pubchemproc/         # SDF processing pipeline
+│   ├── pubchemproc/         # SDF processing pipeline and Online REST client & caching
 │   │   ├── file_handler.py  # Read/write SDF/archives
 │   │   ├── pubchem.py       # SDF parsing logic
-│   │   └── __init__.py
-│   ├── pubchem_api/         # Online REST client & caching
 │   │   ├── cache.py         # Local query caching
 │   │   ├── fetch.py         # PubChem API requests
 │   │   └── __init__.py

@@ -5,7 +5,8 @@ import json
 import logging
 from logging import StreamHandler, FileHandler, Formatter
 
-from molid.db.offline_db_cli import create_offline_db, update_database, use_database, enrich_cas_database
+from molid.db.offline_db_cli import update_database, use_database, enrich_cas_database
+from molid.db.db_utils import create_offline_db
 from molid.search.service import SearchService, SearchConfig
 from molid.utils.settings import load_config, save_config
 
