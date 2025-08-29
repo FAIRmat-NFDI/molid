@@ -174,6 +174,15 @@ molid search QWERTYUIOPLKJHG --id-type inchikey
 
 Prints JSON properties and the data source mode.
 
+### HTTP tuning (optional)
+
+You can adjust PubChem request behavior via env vars:
+
+- MOLID_HTTP_CONNECT_TIMEOUT (default 10)
+- MOLID_HTTP_READ_TIMEOUT (default 35)
+- MOLID_HTTP_RETRIES (default 4)
+- MOLID_HTTP_BACKOFF (default 0.7)
+
 ---
 
 ## Programmatic API
