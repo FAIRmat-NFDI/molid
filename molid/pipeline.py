@@ -115,7 +115,7 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
         raise ValueError(
             "Could not parse the provided string as XYZ/EXTXYZ content. "
             "Provide an ASE Atoms, a file path (.xyz/.extxyz/.sdf), raw XYZ text, or an identifier dict."
-    )
+        )
 
 
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")

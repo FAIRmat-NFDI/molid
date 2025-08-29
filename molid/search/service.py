@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from collections.abc import Callable
 from typing import Any
@@ -11,12 +12,25 @@ from molid.search.db_lookup import basic_offline_search
 from molid.pubchemproc.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db
 from molid.pubchemproc.fetch import fetch_molecule_data
-from molid.utils.conversion import convert_to_inchikey
+from molid.utils.identifiers import normalize_query
 from molid.search.db_lookup import advanced_search
 
 logger = logging.getLogger(__name__)
 
+def _has_readable_file(p: str | None) -> bool:
+    return bool(p) and os.path.isfile(p) and os.access(p, os.R_OK)
 
+def _is_writable_dir(path: str | None) -> bool:
+    d = Path(os.path.dirname(path) or ".")
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        test = d / ".molid_writetest"
+        with open(test, "w") as fh:
+            fh.write("")
+        test.unlink(missing_ok=True)  # py>=3.8
+        return True
+    except Exception:
+        return False
 # ---------------------------------------------------------------------------
 # Custom exceptions
 # ---------------------------------------------------------------------------
@@ -94,7 +108,9 @@ class SearchService:
             raise TypeError("query must be a dict of one key/value.")
         if len(query) != 1:
             raise ValueError(f"Expected exactly 1 search parameter, got {len(query)}.")
+
         query_lc = {k.lower(): v for k, v in query.items()}
+        mode = (self.cfg.mode or "").lower()
 
         # Direct mode
         if self.cfg.mode != "auto":
@@ -104,43 +120,50 @@ class SearchService:
             return self._dispatch[mode](query_lc)
 
         # AUTO MODE
-        priorities = self.cfg.auto_priority or ["offline-basic", "online-cached", "online-only"]
+        priority = (self.cfg.auto_priority
+                    or ["offline-basic", "online-cached", "online-only"])
 
-        for mode in priorities:
-            if mode not in self._dispatch:
-                logger.debug("AUTO: skipping unknown mode %s", mode)
-                continue
+        for tier in priority:
+            # 1) Quick availability/permission gates (same as before)
+            if tier.startswith("offline"):
+                if not _has_readable_file(self.master_db):
+                    logger.debug("Skip %s: master DB missing/unreadable", tier)
+                    continue
+                if tier == "offline-advanced" and not _has_readable_file(self.cache_db):
+                    logger.debug("Skip %s: cache DB missing/unreadable", tier)
+                    continue
 
-            # Prereq checks (non-noisy skips)
+            if tier == "online-cached":
+                # allow lazy creation, but ensure parent dir is writable
+                if not _is_writable_dir(self.cache_db):
+                    logger.debug("Skip online-cached: cache dir not writable; falling through")
+                    continue
+
+            # 2) Execute tier
             try:
-                if mode == "offline-basic":
-                    if not os.path.isfile(self.master_db):
-                        logger.debug("AUTO: skip %s (no master DB at %s)", mode, self.master_db)
-                        continue
-
-                elif mode == "online-cached":
-                    # Ensure cache dir is writable (schema created lazily inside the mode)
-                    cache_dir = os.path.dirname(self.cache_db) or "."
-                    try:
-                        os.makedirs(cache_dir, exist_ok=True)
-                    except Exception as e:
-                        logger.debug("AUTO: skip %s (cannot create cache dir %s: %s)", mode, cache_dir, e)
-                        continue
-
-                # online-only has no prereqs
-
-                # Try the mode
-                res, _used = self._dispatch[mode](query_lc)
-                logger.info("AUTO: succeeded via %s", mode)
-                return res, mode
-
+                records, used = self._dispatch[tier](query_lc)
             except (MoleculeNotFound, DatabaseNotFound) as e:
-                logger.info("AUTO: %s yielded no result (%s); trying next...", mode, e)
+                logger.info("Tier %s yielded no result: %s; falling through", tier, e)
+                continue
+            except FileNotFoundError:
+                logger.debug("Tier %s resource missing; falling through", tier)
+                continue
+            except PermissionError:
+                logger.debug("Tier %s permission error; falling through", tier)
                 continue
             except Exception as e:
-                logger.warning("AUTO: unexpected error in %s: %s; trying next...", mode, e)
+                logger.exception("Tier %s failed hard; aborting", tier)
+                raise
+
+            # 3) NEW: If this tier returns no rows, try the next one.
+            if not records:
+                logger.debug("Tier %s returned 0 results; trying next tier", tier)
                 continue
 
+            logger.info("Resolved via %s with %d results", tier, len(records))
+            return records, tier
+
+        # Nothing matched
         raise MoleculeNotFound("AUTO mode exhausted all strategies with no result.")
 
     # ------------------------------------------------------------------
@@ -167,33 +190,6 @@ class SearchService:
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
-    def _preprocess_input(
-        self,
-        input: dict[str, Any],
-        mode: str
-    ) -> tuple[str, Any]:
-        """Normalize and convert identifiers based on mode (basic vs advanced)."""
-        if mode == 'basic':
-            id_types = ("inchikey", "inchi", "smiles")
-        elif mode == 'advanced':
-            id_types = ('cid', 'name', 'smiles', 'inchi', 'inchikey', 'molecularformula', 'cas')
-
-        id_type = list(input.keys())[0]
-        id_value = list(input.values())[0]
-
-        if id_type not in id_types:
-            raise ValueError(
-                f"search mode {mode} only supports input of {id_types} (not case sensitive); "
-                f"received {id_type!r}."
-            )
-
-        if id_type in ("inchi", "smiles"):
-            inchikey = convert_to_inchikey(id_value, id_type)
-            return "inchikey", inchikey
-
-        return id_type, id_value
-
-
     # ------------------------------------------------------------------
     # Mode‑specific implementations
     # ------------------------------------------------------------------
@@ -202,7 +198,7 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        __, id_value = self._preprocess_input(input, 'basic')
+        __, id_value = normalize_query(input, 'basic')
         record = basic_offline_search(self.master_db, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
@@ -212,7 +208,7 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        id_type, id_value = self._preprocess_input(input, 'advanced')
+        id_type, id_value = normalize_query(input, 'advanced')
         results = advanced_search(self.cache_db, id_type, id_value)
         if not results:
             raise MoleculeNotFound(
@@ -225,16 +221,7 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        # Use the identifier as-is for live API calls (no pre-conversion to InChIKey).
-        if not isinstance(input, dict) or len(input) != 1:
-            raise ValueError("Expected a single identifier for online-only mode.")
-        id_type = next(iter(input)).lower()
-        id_value = next(iter(input.values()))
-
-        # Optional tiny alias if you ever pass 'molecularformula' (PubChem uses 'formula')
-        ns_map = {"molecularformula": "formula"}
-        id_type = ns_map.get(id_type, id_type)
-
+        id_type, id_value = normalize_query(input, 'advanced')
         data = fetch_molecule_data(id_type, id_value)
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value!r}.")
@@ -246,7 +233,7 @@ class SearchService:
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         create_cache_db(self.cache_db)
-        id_type, id_value = self._preprocess_input(input, 'advanced')
+        id_type, id_value = normalize_query(input, 'advanced')
         rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
         if not rec:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value}.")
