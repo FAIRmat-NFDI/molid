@@ -13,6 +13,7 @@ from molid.pubchemproc.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db
 from molid.pubchemproc.fetch import fetch_molecule_data
 from molid.utils.identifiers import normalize_query, UnsupportedIdentifierForMode
+from molid.utils.formula import canonicalize_formula
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +212,8 @@ class SearchService:
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = normalize_query(input, 'advanced')
+        if id_type == "molecularformula":
+            id_value = canonicalize_formula(str(id_value))
         results = advanced_search(self.cache_db, id_type, id_value)
         if not results:
             raise MoleculeNotFound(
@@ -224,6 +227,8 @@ class SearchService:
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = normalize_query(input, 'advanced')
+        if id_type == "molecularformula":
+            id_value = canonicalize_formula(str(id_value))
         data = fetch_molecule_data(id_type, id_value)
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value!r}.")
@@ -236,6 +241,8 @@ class SearchService:
     ) -> tuple[list[dict[str, Any]], str]:
         create_cache_db(self.cache_db)
         id_type, id_value = normalize_query(input, 'advanced')
+        if id_type == "molecularformula":
+            id_value = canonicalize_formula(str(id_value))
         rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
         if not rec:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value}.")

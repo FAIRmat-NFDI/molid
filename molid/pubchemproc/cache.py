@@ -6,6 +6,7 @@ from typing import Any
 from molid.search.db_lookup import advanced_search
 from molid.db.db_utils import insert_dict_records
 from molid.db.sqlite_manager import DatabaseManager
+from molid.utils.formula import canonicalize_formula
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,10 @@ def store_cached_data(
                 mgr.execute("UPDATE cached_molecules SET CAS = ? WHERE InChIKey = ?", [id_value, ik])
 
     cached = advanced_search(cache_db_file, id_type, id_value)
+    logger.debug("cached results: %s, for %s, %s", cached, id_type, id_value)
+    if not cached and id_type.lower() == "molecularformula":
+        cached = advanced_search(cache_db_file, "molecularformula", canonicalize_formula(str(id_value)))
+
     if not cached:
         logger.warning(
             "Failed to retrieve just-stored cache record for %s (%s)",
@@ -70,6 +75,12 @@ def get_cached_or_fetch(
     and stores it.
     Returns (record, from_cache).
     """
+    if id_type.lower() == "molecularformula":
+        canon = canonicalize_formula(str(id_value))
+        cached = advanced_search(cache_db_file, id_type, canon)
+        if cached:
+            return cached, True
+
     cached = advanced_search(cache_db_file, id_type, id_value)
     if cached:
         return cached, True
