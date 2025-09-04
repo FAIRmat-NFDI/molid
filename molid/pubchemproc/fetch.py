@@ -1,5 +1,6 @@
 # molid/pubchemproc/fetch.py
 from __future__ import annotations
+import requests
 from typing import Any
 
 from molid.pubchemproc.pubchem_client import (
@@ -120,7 +121,12 @@ def fetch_molecule_data(
                 rec.setdefault("CAS", rns[0])
         return props
 
-    cids = resolve_to_cids(id_type, id_value)
+    try:
+        cids = resolve_to_cids(id_type, id_value)
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            return []
+        raise
     if not cids:
         return []
 

@@ -8,12 +8,11 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 
-from molid.search.db_lookup import basic_offline_search
+from molid.search.db_lookup import basic_offline_search, advanced_search
 from molid.pubchemproc.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db
 from molid.pubchemproc.fetch import fetch_molecule_data
-from molid.utils.identifiers import normalize_query
-from molid.search.db_lookup import advanced_search
+from molid.utils.identifiers import normalize_query, UnsupportedIdentifierForMode
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +140,11 @@ class SearchService:
 
             # 2) Execute tier
             try:
+                logger.debug("Tier %s: dispatch with %s", tier, query_lc)
                 records, used = self._dispatch[tier](query_lc)
+            except UnsupportedIdentifierForMode as e:
+                logger.debug("Skip %s: %s", tier, e)  # 👈 quietly skip this tier
+                continue
             except (MoleculeNotFound, DatabaseNotFound) as e:
                 logger.info("Tier %s yielded no result: %s; falling through", tier, e)
                 continue
@@ -151,11 +154,10 @@ class SearchService:
             except PermissionError:
                 logger.debug("Tier %s permission error; falling through", tier)
                 continue
-            except Exception as e:
+            except Exception:
                 logger.exception("Tier %s failed hard; aborting", tier)
                 raise
 
-            # 3) NEW: If this tier returns no rows, try the next one.
             if not records:
                 logger.debug("Tier %s returned 0 results; trying next tier", tier)
                 continue

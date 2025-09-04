@@ -1,10 +1,11 @@
 # molid/pubchemproc/pubchem_client.py
 from __future__ import annotations
+
+import os
+import requests
 from typing import Any
 from urllib.parse import quote
-import os
 
-import requests
 from requests.adapters import HTTPAdapter, Retry
 
 # -------- Tunables (env-overridable, no hard dependency on settings.py) -----
@@ -58,20 +59,54 @@ def ns_for_id_type(id_type: str) -> str:
 # ------------------------------- High-level API -----------------------------
 
 def resolve_to_cids(id_type: str, id_value: str) -> list[int]:
-    ns = ns_for_id_type(id_type)
-    safe_value = quote(str(id_value), safe="")
+    """
+    Resolve an identifier to PubChem CIDs.
+
+    Supports inchikey, inchi, smiles, cid, name (as before) and now also
+    molecularformula/formula via the PubChem fastformula endpoint.
+
+    404 responses are treated as "no hits" so callers can fall through to
+    the next strategy.
+    """
+    key = (id_type or "").strip().lower()
+    safe_value = quote(str(id_value).strip(), safe="")
+
+    # Select namespace: use fastformula for molecular formulas
+    if key in ("molecularformula", "formula"):
+        ns = "fastformula"
+    else:
+        # falls back to your existing namespace resolver
+        ns = ns_for_id_type(key)
+
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{ns}/{safe_value}/cids/JSON"
+
     s = get_session()
-    r = s.get(url, timeout=_TIMEOUT)
-    r.raise_for_status()
-    obj = r.json()
+    try:
+        r = s.get(url, timeout=_TIMEOUT)
+        if r.status_code == 404:
+            # Soft miss: behave like no results so higher layers can try next tier
+            return []
+        r.raise_for_status()
+        obj = r.json()
+    except requests.HTTPError as e:
+        # Treat 404 as "no hits"; re-raise anything else
+        if getattr(e.response, "status_code", None) == 404:
+            return []
+        raise
+
+    # PubChem returns either IdentifierList.CID or InformationList.Information[0].CID
     cids = (
         obj.get("IdentifierList", {}).get("CID")
         or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
     )
+
     if not cids:
         return []
-    return [int(c) for c in (cids if isinstance(cids, list) else [cids])]
+
+    # Normalize to list[int]
+    if not isinstance(cids, list):
+        cids = [cids]
+    return [int(c) for c in cids]
 
 
 def get_properties(cid: int, properties: tuple[str, ...]) -> list[dict[str, Any]]:
