@@ -6,6 +6,7 @@ import warnings
 
 from typing import Any
 from molid.db.sqlite_manager import DatabaseManager
+from molid.db.schema import CACHE_COLUMNS
 
 logger = logging.getLogger(__name__)
 
@@ -13,22 +14,25 @@ CACHE_TABLE = 'cached_molecules'
 OFFLINE_TABLE_MASTER = 'compound_data'
 OFFLINE_TABLE_CAS    = 'cas_mapping'
 
-_CACHE_FIELDS: dict[str, str] = {
-    'cid': 'CID',
-    'inchikey': 'InChIKey',
-    'cas': 'CAS',
-    'molecularformula': 'MolecularFormula',
-    'inchi': 'InChI',
-    'tpsa': 'TPSA',
-    'charge': 'Charge',
-    'smiles': 'SMILES',
-    'name': 'Title',
-    'iupacname': 'IUPACName',
-    'xlogp': 'XLogP',
-    'exactmass': 'ExactMass',
-    'complexity': 'Complexity',
-    'monoisotopicmass': 'MonoisotopicMass',
-}
+# _CACHE_FIELDS: dict[str, str] = {
+#     'cid': 'CID',
+#     'inchikey': 'InChIKey',
+#     'inchikey14': 'InChIKey14',
+#     'molecularformula': 'MolecularFormula',
+#     'inchi': 'InChI',
+#     'tpsa': 'TPSA',
+#     'charge': 'Charge',
+#     'smiles': 'CanonicalSMILES',
+#     'isomericsmiles': 'IsomericSMILES',
+#     'name': 'Title',
+#     'iupacname': 'IUPACName',
+#     'xlogp': 'XLogP',
+#     'exactmass': 'ExactMass',
+#     'molecularweight': 'MolecularWeight',
+#     'complexity': 'Complexity',
+#     'monoisotopicmass': 'MonoisotopicMass',
+#     'cas': 'CAS'
+# }
 
 def basic_offline_search(
     offline_db_file: str,
@@ -88,9 +92,13 @@ def advanced_search(
     if not os.path.exists(db_file):
         logger.debug("DB file %s does not exist", db_file)
         return []
-    fields_map = _CACHE_FIELDS
 
-    column = fields_map.get(id_type.lower())
+    columns = {c.lower(): c for c in CACHE_COLUMNS}
+    if id_type.lower() == "smiles" and "canonicalsmiles" in columns:
+        column = "canonicalsmiles"
+    else:
+        column = columns.get(id_type.lower())
+
     if not column:
         raise ValueError(f"Unsupported search field '{id_type}' for table '{CACHE_TABLE}'")
 

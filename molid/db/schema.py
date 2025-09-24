@@ -1,3 +1,5 @@
+import re
+
 """
 Centralized SQL schema definitions for MolID's SQLite databases.
 """
@@ -5,16 +7,15 @@ Centralized SQL schema definitions for MolID's SQLite databases.
 OFFLINE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS compound_data (
     CID                 INTEGER PRIMARY KEY,
-    Name                TEXT,
+    Title               TEXT,
     IUPACName           TEXT,
-    Formula             TEXT,
-    ExactMass           TEXT,
-    MolecularWeight     REAL,
-    MonoisotopicMass    REAL,
-    SMILES              TEXT,
-    InChIKey            TEXT,
+    MolecularFormula    TEXT,
     InChI               TEXT,
-    CAS                 TEXT
+    InChIKey            TEXT,
+    SMILES              TEXT,
+    ExactMass           REAL,
+    MonoisotopicMass    REAL,
+    MolecularWeight     REAL
 );
 CREATE INDEX IF NOT EXISTS idx_inchikey ON compound_data(InChIKey);
 CREATE INDEX IF NOT EXISTS idx_compound_inchikey14 ON compound_data(substr(InChIKey, 1, 14));
@@ -46,19 +47,20 @@ CREATE TABLE IF NOT EXISTS processed_archives (
 CACHE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cached_molecules (
     CID                INTEGER PRIMARY KEY,
-    InChIKey           TEXT,
-    MolecularFormula   TEXT,
-    InChI              TEXT,
-    TPSA               REAL,
-    Charge             INTEGER,
-    ConnectivitySMILES TEXT,
     Title              TEXT,
     IUPACName          TEXT,
+    MolecularFormula   TEXT,
+    InChI              TEXT,
+    InChIKey           TEXT,
+    CanonicalSMILES    TEXT,    -- connectivity/topology only
+    IsomericSMILES     TEXT,    -- stereo + isotope
     XLogP              REAL,
-    ExactMass          TEXT,
+    ExactMass          REAL,
+    MonoisotopicMass   REAL,
+    MolecularWeight    REAL,
+    TPSA               REAL,
     Complexity         INTEGER,
-    MonoisotopicMass   TEXT,
-    SMILES             TEXT,
+    Charge             INTEGER,
     CAS                TEXT,
     fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,3 +68,30 @@ CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(substr(InChIKey, 1, 14));
 CREATE INDEX IF NOT EXISTS idx_cache_cas ON cached_molecules(CAS);
 """
+
+def _extract_columns(schema: str, table: str) -> tuple[str, ...]:
+    m = re.search(rf"CREATE TABLE IF NOT EXISTS {table} \((.*?)\)", schema, re.S | re.I)
+    cols = []
+    for line in (m.group(1) if m else "").splitlines():
+        line = line.strip().rstrip(",")
+        if not line or line.upper().startswith(("PRIMARY KEY", "FOREIGN KEY")):
+            continue
+        col = line.split()[0]
+        if col != "fetched_at":
+            cols.append(col)
+    return tuple(cols)
+
+CACHE_COLUMNS = _extract_columns(CACHE_SCHEMA, "cached_molecules")
+
+# derive API request list from the same source of truth
+DEFAULT_PROPERTIES = tuple(c for c in CACHE_COLUMNS if c not in {"CID", "CAS"})
+
+NUMERIC_FIELDS = {
+    "XLogP",
+    "ExactMass",
+    "MonoisotopicMass",
+    "MolecularWeight",
+    "TPSA",
+    "Complexity",
+    "Charge",
+}

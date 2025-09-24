@@ -6,7 +6,9 @@ from typing import Any
 from molid.search.db_lookup import advanced_search
 from molid.db.db_utils import insert_dict_records
 from molid.db.sqlite_manager import DatabaseManager
+from molid.db.schema import NUMERIC_FIELDS
 from molid.utils.formula import canonicalize_formula
+from molid.utils.conversion import coerce_numeric_fields
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +34,12 @@ def store_cached_data(
     if id_type.lower() == "cas":
         for item in api_data:
             item.setdefault("CAS", str(id_value))
+
+    cleaned_records = [coerce_numeric_fields(item, NUMERIC_FIELDS) for item in api_data]
     insert_dict_records(
         db_file=cache_db_file,
         table=CACHE_TABLE,
-        records=api_data,
+        records=cleaned_records,
         ignore_conflicts=True
     )
 
