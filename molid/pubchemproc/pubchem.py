@@ -13,23 +13,10 @@ from molid.pubchemproc.file_handler import (
     GzipValidationError,
     FileUnpackError,
 )
+from molid.db.schema import DEFAULT_PROPERTIES_MASTER
 
 logger = logging.getLogger(__name__)
 
-
-# Fields used for processing SDF files (only a limited set)
-FIELDS_TO_EXTRACT: dict[str, str] = {
-    "CID": "PUBCHEM_COMPOUND_CID",
-    "Name": "Title",
-    "IUPACName": "PUBCHEM_IUPAC_NAME",
-    "Formula": "PUBCHEM_MOLECULAR_FORMULA",
-    "ExactMass": "PUBCHEM_EXACT_MASS",
-    "MolecularWeight": "PUBCHEM_MOLECULAR_WEIGHT",
-    "MonoisotopicMass": "PUBCHEM_MONOISOTOPIC_MASS",
-    "SMILES": "PUBCHEM_SMILES",
-    "InChIKey": "PUBCHEM_IUPAC_INCHIKEY",
-    "InChI": "PUBCHEM_IUPAC_INCHI",
-}
 
 def process_file(
     file_path: Path,
@@ -42,7 +29,7 @@ def process_file(
             line = line.strip()
             if line.startswith("> <"):
                 property_name = line[3:-1]
-                if property_name in FIELDS_TO_EXTRACT.values():
+                if property_name in DEFAULT_PROPERTIES_MASTER.values():
                     # Read all lines until a blank line (multi-line SDF field)
                     value_lines = []
                     for vline in file:
@@ -51,7 +38,7 @@ def process_file(
                             break
                         value_lines.append(vline)
                     value = "\n".join(value_lines).strip()
-                    key = [k for k, v in FIELDS_TO_EXTRACT.items() if v == property_name][0]
+                    key = [k for k, v in DEFAULT_PROPERTIES_MASTER.items() if v == property_name][0]
                     compound_data[key] = value
             elif line == "$$$$":
                 if compound_data:

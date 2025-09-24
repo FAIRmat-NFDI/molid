@@ -1,19 +1,57 @@
+# molid/db/cas_enrich.py
 from __future__ import annotations
-import time
+
 import os
-from typing import Iterable
+import re
+import time
+import math
+import sqlite3
+from typing import Iterable, Dict, List, Set, Tuple, Iterable
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import quote
+
+import requests
+from requests.adapters import HTTPAdapter, Retry
+from tqdm import tqdm
+
 from molid.db.sqlite_manager import DatabaseManager
 from molid.pubchemproc.pubchem_client import get_session
 
-from requests.adapters import HTTPAdapter, Retry
-import requests
+# =========================
+# Tunables / Env overrides
+# =========================
 
-_TIMEOUT = float(os.getenv("MOLID_CAS_TIMEOUT", "30"))
-_RETRIES = int(os.getenv("MOLID_CAS_RETRIES", "3"))
+_TIMEOUT     = float(os.getenv("MOLID_CAS_TIMEOUT", "10"))
+_RETRIES     = int(os.getenv("MOLID_CAS_RETRIES", "4"))
+BATCH_SIZE   = int(os.getenv("MOLID_CAS_BATCH_SIZE", "300"))       # CIDs per network call
+MAX_WORKERS  = int(os.getenv("MOLID_CAS_MAX_WORKERS", "6"))        # concurrent batch calls
+FLUSH_EVERY  = int(os.getenv("MOLID_CAS_FLUSH_EVERY", "50000"))    # rows before DB flush
+SLEEP_BETWEEN= float(os.getenv("MOLID_CAS_SLEEP", "0.0"))          # optional pause per finished batch
+
+# =========================
+# CAS helpers / validation
+# =========================
+
+_CAS_RE = re.compile(r"(\d{2,7})-(\d{2})-(\d)$")
+
+def _is_cas_rn(s: str) -> bool:
+    m = _CAS_RE.fullmatch((s or "").strip())
+    if not m:
+        return False
+    digits = (m.group(1) + m.group(2))[::-1]
+    checksum = sum(int(c) * (i + 1) for i, c in enumerate(digits)) % 10
+    return checksum == int(m.group(3))
+
+# =========================
+# Network / Session
+# =========================
 
 def _make_session(retries: int) -> requests.Session:
-    s = get_session()  # reuse shared session (already retried)
-    # Optionally extend with CAS-specific retries if caller asked for more
+    """
+    Reuse the shared session and add compression + extra retries if requested.
+    """
+    s = get_session()  # already has a Retry adapter mounted
+    s.headers.update({"Accept-Encoding": "gzip, deflate"})
     if retries > 0:
         s.mount("https://", HTTPAdapter(max_retries=Retry(
             total=retries, connect=retries, read=retries, status=retries,
@@ -24,73 +62,316 @@ def _make_session(retries: int) -> requests.Session:
         )))
     return s
 
-def _is_cas_rn(s: str) -> bool:
-    import re
-    m = re.fullmatch(r"(\d{2,7})-(\d{2})-(\d)", (s or "").strip())
-    if not m: return False
-    digits = (m.group(1) + m.group(2))[::-1]
-    return sum(int(c) * (i+1) for i, c in enumerate(digits)) % 10 == int(m.group(3))
-
-def _fetch_cas_by_cid(cid: int, session: requests.Session, timeout: float) -> list[str]:
-    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/xrefs/RN/JSON"
+def _fetch_rn_batch(session: requests.Session, cids: List[int], timeout: float) -> Dict[int, List[str]]:
+    """
+    Fetch CAS RN lists for a batch of CIDs via a single PUG REST call.
+    Returns {cid: [RN, ...]}.
+    """
+    result: Dict[int, List[str]] = {}
+    if not cids:
+        return result
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{quote(','.join(map(str, cids)), safe=',')}/xrefs/RN/JSON"
     try:
         r = session.get(url, timeout=(10, timeout))
         if not r.ok:
-            return []
+            return result
+        obj = r.json()
+        info_list = (obj.get("InformationList", {}) or {}).get("Information", []) or []
+        for item in info_list:
+            cid = item.get("CID")
+            rns = item.get("RN") or []
+            if isinstance(rns, str):
+                rns = [rns]
+            if isinstance(cid, int) and rns:
+                result[cid] = [s for s in rns if isinstance(s, str)]
     except requests.RequestException:
-        return []
-    try:
-        info = r.json().get("InformationList", {}).get("Information", [])
-        rns = (info[0].get("RN") if info else []) or []
-        return [rns] if isinstance(rns, str) else [s for s in rns if isinstance(s, str)]
-    except Exception:
-        return []
+        return {}
+    return result
 
-def _fetch_synonyms(cid: int, session: requests.Session, timeout: float) -> list[str]:
-    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/synonyms/JSON"
-    try:
-        r = session.get(url, timeout=(10, timeout))
-        if not r.ok:
-            return []
-    except requests.RequestException:
-        return []
-    try:
-        info = r.json().get("InformationList", {}).get("Information", [])
-        syns = (info[0].get("Synonym") if info else []) or []
-        return [s for s in syns if isinstance(s, str)]
-    except Exception:
-        return []
+# =========================
+# Data prep / batching
+# =========================
+
+def _chunk(iterable: List[int], size: int) -> List[List[int]]:
+    return [iterable[i:i+size] for i in range(0, len(iterable), size)]
+
+def _filter_cids_missing_mapping(db: DatabaseManager, cids: List[int]) -> List[int]:
+    """
+    Return only CIDs that do not yet appear in cas_mapping (any CAS present).
+    """
+    if not cids:
+        return cids
+    out: List[int] = []
+    CH = 999  # keep well under SQLite param limits
+    for i in range(0, len(cids), CH):
+        sub = cids[i:i+CH]
+        placeholders = ",".join("?" for _ in sub)
+        rows = db.query_all(
+            f"""
+            SELECT cd.CID, COUNT(cm.CAS) AS n
+            FROM compound_data cd
+            LEFT JOIN cas_mapping cm ON cm.CID = cd.CID
+            WHERE cd.CID IN ({placeholders})
+            GROUP BY cd.CID
+            """,
+            sub,
+        )
+        for r in rows:
+            if int(r.get("n") or 0) == 0:
+                out.append(int(r["CID"]))
+    return out
+
+# =========================
+# Bulk DB operations
+# =========================
+
+def _bulk_upsert_cas(db_path: str, rows: List[Tuple[str, int, str, int]]) -> int:
+    """
+    Bulk INSERT OR IGNORE rows into cas_mapping.
+    rows are (CAS, CID, source, confidence).
+    Returns number of changes (best effort).
+    """
+    if not rows:
+        return 0
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.executemany(
+            "INSERT OR IGNORE INTO cas_mapping (CAS, CID, source, confidence) VALUES (?,?,?,?)",
+            rows
+        )
+        return conn.total_changes
+
+def _flush_if_needed(db_path: str, buffer: List[Tuple[str, int, str, int]], threshold: int) -> int:
+    if len(buffer) >= threshold:
+        changed = _bulk_upsert_cas(db_path, buffer)
+        buffer.clear()
+        return changed
+    return 0
+
+# =========================
+# Post-processing
+# =========================
+
+GENERIC_HINTS = re.compile(
+    r"(poly|copolymer|oligomer|resin|mixture|blend|grade|uvcb|"
+    r"natural\s+oil|extract|essence|unspecified|trade\s+name)",
+    re.IGNORECASE,
+)
+
+def _downgrade_generic_cas(db: DatabaseManager, cas_values: Iterable[str]) -> None:
+    """
+    Mark generic CAS (confidence=0) in bulk, using a single connection and set-based SQL.
+    Heuristics:
+      • Multi-chemistry: >1 distinct InChIKey14 or >1 distinct formula or any missing/empty formula
+      • Text hints in Title/IUPACName (poly, mixture, resin, etc.)
+    Applies only to the CAS touched in this enrichment run.
+    """
+    cas_list = list({c for c in cas_values if c})
+    if not cas_list:
+        return
+
+    import sqlite3
+    CHUNK = 50_000  # avoid oversized temp tables on huge runs
+    KEYWORD_SQL = (
+        "%poly% OR %copolymer% OR %oligomer% OR %resin% OR %mixture% OR %blend% OR "
+        "%grade% OR %uvcb% OR %natural oil% OR %extract% OR %essence% OR %unspecified% OR %trade name%"
+    )
+
+    with sqlite3.connect(db.db_path) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+
+        for start in range(0, len(cas_list), CHUNK):
+            chunk = cas_list[start:start+CHUNK]
+
+            # 1) Load affected CAS into a temp table for this chunk
+            conn.execute("DROP TABLE IF EXISTS _affected_cas")
+            conn.execute("CREATE TEMP TABLE _affected_cas (CAS TEXT PRIMARY KEY)")
+            conn.executemany("INSERT OR IGNORE INTO _affected_cas(CAS) VALUES (?)", ((c,) for c in chunk))
+
+            # 2) Bulk-downgrade CAS that clearly span multiple chemistries (or have missing formula)
+            conn.execute(f"""
+                UPDATE cas_mapping
+                SET confidence = 0
+                WHERE CAS IN (
+                  SELECT cm.CAS
+                  FROM cas_mapping cm
+                  JOIN compound_data cd ON cd.CID = cm.CID
+                  JOIN _affected_cas ac ON ac.CAS = cm.CAS
+                  GROUP BY cm.CAS
+                  HAVING
+                       COUNT(DISTINCT substr(cd.InChIKey,1,14)) > 1
+                    OR COUNT(DISTINCT cd.MolecularFormula)      > 1
+                    OR SUM(CASE
+                              WHEN cd.MolecularFormula IS NULL
+                                   OR TRIM(cd.MolecularFormula) IN ('','N/A','NA','?')
+                              THEN 1 ELSE 0 END) > 0
+                )
+            """)
+
+            # 3) Bulk-downgrade CAS with mixture/polymer textual hints
+            #    We keep multiple LIKE clauses (can’t parametrize wildcards portably across many patterns).
+            conn.execute("""
+                UPDATE cas_mapping
+                SET confidence = 0
+                WHERE CAS IN (
+                  SELECT DISTINCT cm.CAS
+                  FROM cas_mapping cm
+                  JOIN compound_data cd ON cd.CID = cm.CID
+                  JOIN _affected_cas ac ON ac.CAS = cm.CAS
+                  WHERE (cd.Title     LIKE '%poly%' OR cd.IUPACName LIKE '%poly%')
+                     OR (cd.Title     LIKE '%copolymer%' OR cd.IUPACName LIKE '%copolymer%')
+                     OR (cd.Title     LIKE '%oligomer%' OR cd.IUPACName LIKE '%oligomer%')
+                     OR (cd.Title     LIKE '%resin%' OR cd.IUPACName LIKE '%resin%')
+                     OR (cd.Title     LIKE '%mixture%' OR cd.IUPACName LIKE '%mixture%')
+                     OR (cd.Title     LIKE '%blend%' OR cd.IUPACName LIKE '%blend%')
+                     OR (cd.Title     LIKE '%grade%' OR cd.IUPACName LIKE '%grade%')
+                     OR (cd.Title     LIKE '%uvcb%' OR cd.IUPACName LIKE '%uvcb%')
+                     OR (cd.Title     LIKE '%natural oil%' OR cd.IUPACName LIKE '%natural oil%')
+                     OR (cd.Title     LIKE '%extract%' OR cd.IUPACName LIKE '%extract%')
+                     OR (cd.Title     LIKE '%essence%' OR cd.IUPACName LIKE '%essence%')
+                     OR (cd.Title     LIKE '%unspecified%' OR cd.IUPACName LIKE '%unspecified%')
+                     OR (cd.Title     LIKE '%trade name%' OR cd.IUPACName LIKE '%trade name%')
+                )
+            """)
+
+        conn.commit()
+
+def _update_best_cas_for_cids(db: DatabaseManager, cids: Iterable[int]) -> None:
+    cid_list = list(set(int(c) for c in cids))
+    if not cid_list:
+        return
+    import sqlite3
+    with sqlite3.connect(db.db_path) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        # Use a temp table to limit the update to affected CIDs
+        conn.execute("CREATE TEMP TABLE _affected (CID INTEGER PRIMARY KEY)")
+        conn.executemany("INSERT OR IGNORE INTO _affected(CID) VALUES (?)", ((c,) for c in cid_list))
+        conn.execute("""
+        UPDATE compound_data
+        SET CAS = (
+          SELECT cm.CAS
+          FROM cas_mapping cm
+          WHERE cm.CID = compound_data.CID
+            AND cm.confidence > 0
+          ORDER BY (cm.source='xref') DESC,
+                   cm.confidence DESC,
+                   CAST(substr(cm.CAS, 1, instr(cm.CAS,'-')-1) AS INTEGER) ASC,
+                   cm.CAS ASC
+          LIMIT 1
+        )
+        WHERE CID IN (SELECT CID FROM _affected);
+        """)
+        conn.execute("DROP TABLE _affected")
+        conn.commit()
+
+# =========================
+# Batch fetching (orchestrated)
+# =========================
+
+def _fetch_all_batches(
+    session: requests.Session,
+    batches: List[List[int]],
+    timeout_s: float,
+    max_workers: int,
+    progress_desc: str = "Fetching CAS",
+) -> Tuple[Dict[int, List[str]], int]:
+    """
+    Run batched fetches concurrently and aggregate to {cid: [rns]}.
+    Returns (mapping, completed_batches).
+    """
+    mapping_all: Dict[int, List[str]] = {}
+    completed = 0
+    with tqdm(total=len(batches), desc=progress_desc, unit="batch", dynamic_ncols=True) as pbar:
+        with ThreadPoolExecutor(max_workers=max_workers if max_workers > 1 else None) as ex:
+            future_map = {ex.submit(_fetch_rn_batch, session, b, timeout_s): tuple(b) for b in batches}
+            for fut in as_completed(future_map):
+                try:
+                    got = fut.result() or {}
+                except Exception:
+                    got = {}
+                for cid, rns in got.items():
+                    if rns:
+                        mapping_all[cid] = rns
+                completed += 1
+                pbar.update(1)
+                if SLEEP_BETWEEN > 0:
+                    time.sleep(SLEEP_BETWEEN)
+    return mapping_all, completed
+
+def _prepare_insert_rows(cid_to_rns: Dict[int, List[str]]) -> Tuple[List[Tuple[str, int, str, int]], Set[int], Set[str]]:
+    """
+    Convert mapping to DB rows and collect affected CIDs/CAS.
+    Filters to valid CAS and sets confidence=2 (checksum-valid).
+    """
+    rows: List[Tuple[str, int, str, int]] = []
+    affected_cids: Set[int] = set()
+    affected_cas: Set[str] = set()
+    for cid, rns in cid_to_rns.items():
+        valid = [rn for rn in rns if _is_cas_rn(rn)]
+        if not valid:
+            continue
+        affected_cids.add(cid)
+        for rn in valid:
+            affected_cas.add(rn)
+            rows.append((rn, cid, "xref", 2))
+    return rows, affected_cids, affected_cas
+
+# =========================
+# Public API
+# =========================
 
 def enrich_cas_for_cids(
     db_file: str,
     cids: Iterable[int],
-    sleep_s: float = 0.2,
-    use_synonyms: bool = False,
+    sleep_s: float = 0.0,          # kept for API compat; not used in batched path
+    use_synonyms: bool = False,    # kept for API compat; no-op here
     timeout_s: float = _TIMEOUT,
     retries: int = _RETRIES,
+    batch_size: int = BATCH_SIZE,
+    max_workers: int = MAX_WORKERS,
+    only_missing: bool = True,
 ) -> int:
-    """For each CID, fetch CAS RNs and insert into cas_mapping with confidence flags."""
-    db = DatabaseManager(db_file)
-    session = _make_session(retries=retries)
-    upserts = 0
-    for cid in cids:
-        rns = _fetch_cas_by_cid(cid, session=session, timeout=timeout_s)
-        for rn in rns:
-            conf = 2 if _is_cas_rn(rn) else 1
-            db.execute(
-                "INSERT OR IGNORE INTO cas_mapping (CAS, CID, source, confidence) VALUES (?,?,?,?)",
-                [rn, cid, "xref", conf]
-            )
-            upserts += 1
+    """
+    Enrich CAS mapping for the given CIDs, quickly:
+      • Filter to missing (optional).
+      • Batch + concurrent fetch of /xrefs/RN.
+      • Bulk insert (INSERT OR IGNORE) in large WAL transactions.
+      • Mark generic CAS (confidence=0).
+      • Update best CAS per affected CID.
 
-        if use_synonyms:
-            syns = _fetch_synonyms(cid, session=session, timeout=timeout_s)
-            for s in syns:
-                if _is_cas_rn(s):
-                    db.execute(
-                        "INSERT OR IGNORE INTO cas_mapping (CAS, CID, source, confidence) VALUES (?,?,?,?)",
-                        [s, cid, "synonym", 2]
-                    )
-                    upserts += 1
-        time.sleep(sleep_s)
-    return upserts
+    Returns the number of inserted (CAS, CID) pairs (approximate; due to IGNORE).
+    """
+    session = _make_session(retries=retries)
+    db = DatabaseManager(db_file)
+
+    all_cids = list(int(c) for c in cids)
+    if only_missing:
+        all_cids = _filter_cids_missing_mapping(db, all_cids)
+    if not all_cids:
+        return 0
+
+    batches = _chunk(all_cids, batch_size)
+    cid_to_rns, _ = _fetch_all_batches(
+        session=session,
+        batches=batches,
+        timeout_s=timeout_s,
+        max_workers=max_workers,
+        progress_desc=f"Enriching CAS (batch={batch_size}, workers={max_workers})",
+    )
+
+    # Convert to insertable rows and collect which entities we touched
+    row_buffer, affected_cids, affected_cas = _prepare_insert_rows(cid_to_rns)
+
+    # Flush in chunks to cap memory and speed up SQLite
+    inserted_total = 0
+    # flush in pieces if buffer is huge
+    for i in range(0, len(row_buffer), FLUSH_EVERY):
+        slice_rows = row_buffer[i:i+FLUSH_EVERY]
+        inserted_total += _bulk_upsert_cas(db.db_path, slice_rows)
+
+    # Post-processing: downgrade generic CAS, then choose best CAS per CID
+    _downgrade_generic_cas(db, affected_cas)
+    _update_best_cas_for_cids(db, affected_cids)
+
+    # synonyms path intentionally omitted (slow/noisy); preserve parameter for API stability
+    return inserted_total

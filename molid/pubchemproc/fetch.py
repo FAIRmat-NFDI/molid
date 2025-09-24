@@ -3,27 +3,12 @@ from __future__ import annotations
 import requests
 from typing import Any
 
+from molid.db.schema import DEFAULT_PROPERTIES_CACHE
 from molid.pubchemproc.pubchem_client import (
     resolve_to_cids,
     get_properties,
     get_pugview,
     get_xrefs_rn,
-)
-
-_DEFAULT_PROPERTIES: tuple[str, ...] = (
-    "Title",
-    "IUPACName",
-    "MolecularFormula",
-    "InChI",
-    "InChIKey",
-    "ConnectivitySMILES",
-    "SMILES",
-    "XLogP",
-    "ExactMass",
-    "MonoisotopicMass",
-    "TPSA",
-    "Complexity",
-    "Charge",
 )
 
 def _is_cas_rn(candidate: str) -> bool:
@@ -34,6 +19,16 @@ def _is_cas_rn(candidate: str) -> bool:
     digits = (m.group('p1') + m.group('p2'))[::-1]
     checksum = sum(int(c) * (i + 1) for i, c in enumerate(digits)) % 10
     return checksum == int(m.group('check'))
+
+def _normalize_keys(rec: dict[str, Any]) -> dict[str, Any]:
+    # Be robust to either naming coming from PubChem
+    if "ConnectivitySMILES" in rec and "CanonicalSMILES" not in rec:
+        rec["CanonicalSMILES"] = rec.pop("ConnectivitySMILES")
+    if "SMILES" in rec and "IsomericSMILES" not in rec:
+        rec["IsomericSMILES"] = rec.pop("SMILES")
+    if "Formula" in rec and "MolecularFormula" not in rec:
+        rec["MolecularFormula"] = rec.pop("Formula")
+    return rec
 
 def _fetch_iupac_from_pugview(cid: int) -> str | None:
     # 1) try heading-filtered
@@ -94,7 +89,7 @@ def _fetch_iupac_from_pugview(cid: int) -> str | None:
 def fetch_molecule_data(
     id_type: str,
     id_value: str,
-    properties: tuple[str, ...] = _DEFAULT_PROPERTIES,
+    properties: tuple[str, ...] = DEFAULT_PROPERTIES_CACHE,
 ) -> list[dict[str, Any]]:
     """
     Resolve identifier to CID (if needed), fetch properties,
@@ -106,6 +101,8 @@ def fetch_molecule_data(
         except ValueError:
             raise ValueError(f"Invalid CID value: {id_value!r}")
         props = get_properties(cid_int, properties)
+        props = [_normalize_keys(p) for p in (props or [])]
+
         if props:
             rec = props[0]
             if not rec.get("IUPACName"):
@@ -124,6 +121,7 @@ def fetch_molecule_data(
     try:
         cids = resolve_to_cids(id_type, id_value)
     except requests.HTTPError as e:
+        import pdb; pdb.set_trace()
         if e.response is not None and e.response.status_code == 404:
             return []
         raise
@@ -132,6 +130,7 @@ def fetch_molecule_data(
 
     cid = cids[0]
     props = get_properties(cid, properties)
+    props = [_normalize_keys(p) for p in (props or [])]
     if props:
         rec = props[0]
         rec.setdefault("CID", cid)

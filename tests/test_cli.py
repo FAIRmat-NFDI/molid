@@ -52,7 +52,7 @@ def test_search_offline_basic_found(tmp_path, runner):
     inchikey = "ABCDEF1234567890"
     data = ("C", inchikey, "InChI=1S/C", "C")
     conn.execute(
-        "INSERT INTO compound_data (SMILES, InChIKey, InChI, Formula) VALUES (?, ?, ?, ?)",
+        "INSERT INTO compound_data (SMILES, InChIKey, InChI, MolecularFormula) VALUES (?, ?, ?, ?)",
         data
     )
     conn.commit()

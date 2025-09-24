@@ -14,8 +14,10 @@ from molid.db.db_utils import (
     get_archive_state,
     upsert_archive_state,
 )
+from molid.db.schema import NUMERIC_FIELDS
 from molid.pubchemproc.pubchem import unpack_and_process_file
 from molid.utils.disk_utils import check_disk_space
+from molid.utils.conversion import coerce_numeric_fields
 from molid.utils.ftp_utils import (
     FTP_SERVER,
     get_changed_sdf_files,
@@ -154,15 +156,17 @@ def _ingest(
     processed_folder: str,
 ) -> bool:
     """Unpack, process, and persist one archive. Returns success flag."""
+    def _process_and_save(data: list[dict]):
+        if not data:
+            return
+        cleaned = [coerce_numeric_fields(rec, NUMERIC_FIELDS) for rec in data]
+        save_to_database(database_file, cleaned, list(cleaned[0].keys()))
     return unpack_and_process_file(
         file_name=file_name,
         download_folder=download_folder,
         processed_folder=processed_folder,
-        process_callback=lambda data: save_to_database(
-            database_file, data, list(data[0].keys()) if data else []
-        ),
+        process_callback=_process_and_save,
     )
-
 
 def _record_success(
     database_file: str,

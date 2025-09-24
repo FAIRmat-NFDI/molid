@@ -7,6 +7,8 @@ from typing import Any
 from urllib.parse import quote
 
 from requests.adapters import HTTPAdapter, Retry
+from molid.db.schema import NUMERIC_FIELDS
+from molid.utils.conversion import coerce_numeric_fields
 
 # -------- Tunables (env-overridable, no hard dependency on settings.py) -----
 _CONNECT_TIMEOUT = float(os.getenv("MOLID_HTTP_CONNECT_TIMEOUT", "10"))
@@ -115,7 +117,9 @@ def get_properties(cid: int, properties: tuple[str, ...]) -> list[dict[str, Any]
     s = get_session()
     r = s.get(url, timeout=_TIMEOUT)
     r.raise_for_status()
-    return r.json().get("PropertyTable", {}).get("Properties", []) or []
+    record = r.json().get("PropertyTable", {}).get("Properties", []) or []
+    cleaned_records = [coerce_numeric_fields(item, NUMERIC_FIELDS) for item in record]
+    return cleaned_records
 
 
 def get_pugview(cid: int, heading: str | None = None) -> dict[str, Any] | None:

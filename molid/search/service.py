@@ -142,7 +142,7 @@ class SearchService:
             # 2) Execute tier
             try:
                 logger.debug("Tier %s: dispatch with %s", tier, query_lc)
-                records, used = self._dispatch[tier](query_lc)
+                records, source = self._dispatch[tier](query_lc)
             except UnsupportedIdentifierForMode as e:
                 logger.debug("Skip %s: %s", tier, e)  # 👈 quietly skip this tier
                 continue
@@ -164,7 +164,7 @@ class SearchService:
                 continue
 
             logger.info("Resolved via %s with %d results", tier, len(records))
-            return records, tier
+            return records, source
 
         # Nothing matched
         raise MoleculeNotFound("AUTO mode exhausted all strategies with no result.")
@@ -201,11 +201,12 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        __, id_value = normalize_query(input, 'basic')
-        record = basic_offline_search(self.master_db, id_value)
+        print(input)
+        id_type, id_value = normalize_query(input, 'basic')
+        record = basic_offline_search(self.master_db, id_type, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
-        return record, self.cfg.mode
+        return record, 'master'
 
     def _search_offline_advanced(
         self,
@@ -220,7 +221,7 @@ class SearchService:
                 "No compounds matched identifier: "
                 + ", ".join(f"{k}={v}" for k, v in input.items())
             )
-        return results, self.cfg.mode
+        return results, 'cache'
 
     def _search_online_only(
         self,
@@ -232,7 +233,7 @@ class SearchService:
         data = fetch_molecule_data(id_type, id_value)
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value!r}.")
-        return data, self.cfg.mode
+        return data, 'API'
 
 
     def _search_online_cached(
@@ -254,4 +255,4 @@ class SearchService:
             "identifier=%s, result_source=%s",
             {id_type: id_value}, source
         )
-        return rec, self.cfg.mode
+        return rec, source

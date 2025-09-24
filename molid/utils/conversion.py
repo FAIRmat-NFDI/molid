@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 from io import StringIO
+from typing import Any
 
 from ase.data import atomic_masses
 from ase.io import write
@@ -88,3 +89,21 @@ def convert_to_inchikey(
         raise ValueError(f"Failed to parse {id_type!r}: {identifier!r}")
 
     return conv.WriteString(mol).strip()
+
+def coerce_numeric_fields(record: dict[str, Any], numeric_fields: set[str]) -> dict[str, Any]:
+    """Convert fields in record to floats/ints where appropriate."""
+    out = {}
+    for k, v in record.items():
+        if k in numeric_fields and v is not None:
+            try:
+                if isinstance(v, (int, float)):
+                    out[k] = v
+                else:
+                    # try int first, then float
+                    f = float(str(v).strip())
+                    out[k] = int(f) if f.is_integer() else f
+            except Exception:
+                out[k] = None  # drop invalid values
+        else:
+            out[k] = v
+    return out

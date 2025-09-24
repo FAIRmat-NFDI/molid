@@ -15,14 +15,14 @@ ADVANCED_RESULT = {
     'InChI': 'InChI=1S/CO2/c2-1-3',
     'TPSA': 34.1,
     'Charge': 0,
-    'ConnectivitySMILES': 'C(=O)=O',
-    'SMILES': 'C(=O)=O',
+    'CanonicalSMILES': 'C(=O)=O',
+    'IsomericSMILES': 'C(=O)=O',
     'Title': 'Carbon Dioxide',
-    'IUPACName': 'Carbon Dioxide',
+    'IUPACName': 'carbon dioxide',
     'XLogP': 0.9,
-    'ExactMass': '43.989829239',
+    'ExactMass': 43.989829239,
     'Complexity': 18,
-    'MonoisotopicMass': '43.989829239'
+    'MonoisotopicMass': 43.989829239
 }
 
 BASIC_RESULT = {

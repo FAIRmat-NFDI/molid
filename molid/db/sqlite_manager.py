@@ -22,7 +22,10 @@ class DatabaseManager:
         """Create or migrate the database schema."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                conn.executescript(sql_script)
+                try:
+                    conn.executescript(sql_script)
+                except:
+                    import pdb; pdb.set_trace()
             logger.info("Initialized database schema at %s", self.db_path)
         except sqlite3.Error as e:
             logger.error("Failed to initialize %s: %s", self.db_path, e)
@@ -105,6 +108,9 @@ class DatabaseManager:
 
     def executemany(self, sql: str, seq_of_params: Sequence[Sequence[Any]]) -> None:
         with sqlite3.connect(self.db_path) as conn:
-            conn.executemany(sql, seq_of_params)
+            try:
+                conn.executemany(sql, seq_of_params)
+            except:
+                import pdb; pdb.set_trace()
             conn.commit()
 
