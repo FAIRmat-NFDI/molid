@@ -25,31 +25,6 @@ def insert_dict_records(
     rows = [[rec.get(col) for col in columns] for rec in records]
     mgr.insert_many(table=table, columns=columns, rows=rows, ignore_conflicts=ignore_conflicts)
 
-# def is_folder_processed(
-#     database_file: str,
-#     folder_name: str
-# ) -> bool:
-#     """Check if a folder has already been processed."""
-#     mgr = DatabaseManager(database_file)
-#     return mgr.exists(
-#         table="processed_folders",
-#         where_clause="folder_name = ?",
-#         params=[folder_name]
-#     )
-
-# def mark_folder_as_processed(
-#     database_file: str,
-#     folder_name: str
-# ) -> None:
-#     """Mark a folder as processed."""
-#     mgr = DatabaseManager(database_file)
-#     mgr.insert_many(
-#         table="processed_folders",
-#         columns=["folder_name"],
-#         rows=[[folder_name]],
-#         ignore_conflicts=True
-#     )
-
 def initialize_database(
     db_file: str,
     sql_script: str

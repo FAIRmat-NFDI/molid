@@ -32,7 +32,7 @@ def normalize_query(
         logger.debug('CanonicalSMILES, IsomericSMILES, SMILES and InChi are converted to InChiKey')
         return "inchikey", convert_to_inchikey(v, "smiles")
 
-    if k in ("inchi"):
+    if k == "inchi":
         return "inchikey", convert_to_inchikey(v, k)
 
     if k in ("formula", "molecularformula") and not any(ch.isupper() for ch in v):

@@ -201,7 +201,6 @@ class SearchService:
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
-        print(input)
         id_type, id_value = normalize_query(input, 'basic')
         record = basic_offline_search(self.master_db, id_type, id_value)
         if not record:

@@ -74,7 +74,6 @@ def master_lookup_by_cas(offline_db_file: str, cas: str) -> list[dict[str, Any]]
            f"JOIN {OFFLINE_TABLE_MASTER} cd ON cd.CID = cm.CID "
            f"WHERE cm.CAS = ? ORDER BY cm.confidence DESC")
     rows = db.query_all(sql, [cas])
-    import pdb; pdb.set_trace()
     return rows or []
 
 def advanced_search(

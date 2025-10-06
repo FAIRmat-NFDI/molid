@@ -62,7 +62,6 @@ def store_cached_data(
         cached = advanced_search(cache_db_file, "molecularformula", canonicalize_formula(str(id_value)))
 
     if not cached:
-        import pdb; pdb.set_trace()
         logger.warning(
             "Failed to retrieve just-stored cache record for %s (%s)",
             id_type, id_value

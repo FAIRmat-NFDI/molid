@@ -121,8 +121,7 @@ def fetch_molecule_data(
     try:
         cids = resolve_to_cids(id_type, id_value)
     except requests.HTTPError as e:
-        import pdb; pdb.set_trace()
-        if e.response is not None and e.response.status_code == 404:
+        if e.response is not None and getattr(e.response, 'status_code', None) == 404:
             return []
         raise
     if not cids:

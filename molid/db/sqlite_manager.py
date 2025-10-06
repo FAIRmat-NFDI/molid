@@ -24,8 +24,9 @@ class DatabaseManager:
             with sqlite3.connect(self.db_path) as conn:
                 try:
                     conn.executescript(sql_script)
-                except:
-                    import pdb; pdb.set_trace()
+                except Exception:
+                    logger.exception('Schema initialization failed for %s', self.db_path)
+                    raise
             logger.info("Initialized database schema at %s", self.db_path)
         except sqlite3.Error as e:
             logger.error("Failed to initialize %s: %s", self.db_path, e)
@@ -110,7 +111,8 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             try:
                 conn.executemany(sql, seq_of_params)
-            except:
-                import pdb; pdb.set_trace()
-            conn.commit()
+                conn.commit()
+            except Exception:
+                logger.exception('executemany failed on %s', self.db_path)
+                raise
 
