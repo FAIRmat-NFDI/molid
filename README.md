@@ -1,73 +1,75 @@
 # MolID
 
-**MolID** is a versatile Python package and command-line tool for downloading, processing, and querying chemical compound data from PubChem. It supports both:
-
-- A full offline SQLite database built from PubChem SDF dumps.
-- On-demand online queries via the PubChem REST API, with optional per-user caching.
+**MolID** is a Python toolkit and CLI for **resolving, validating, and enriching chemical identifiers** from PubChem — either online via API, offline via local databases, or through a smart hybrid `AUTO` mode.
+It is designed to provide robust compound lookup, CAS mapping, and caching for workflows that integrate chemical metadata into larger material-science or data-infrastructure projects.
 
 ---
 
-## Features
+## Key Features
 
-- **PubChem SDF Processing**
+### Multi-Mode Search
+- **AUTO mode:** dynamically selects between offline, cached, and online search for best performance and completeness.
+- **Offline search:** query pre-built SQLite databases (full or partial PubChem subsets).
+- **Online search:** fetch from PubChem REST API.
+- **Cached search:** automatically stores previous results in a local cache database.
 
-  - Download `.sdf.gz` archives from NCBI FTP with resume and retry logic.
-  - Unpack and extract core properties: SMILES, InChI, InChIKey, molecular formula.
+### Supported Identifiers
+- CID, CAS, InChI, InChIKey, SMILES, MolecularFormula, and Name.
+- Auto-normalization of identifiers (e.g. SMILES → InChIKey).
+- Isotope-aware InChIKey generation from ASE `Atoms` objects using OpenBabel.
 
-- **Offline Database**
+### Databases
+- **Offline database:** built from PubChem `.sdf.gz` dumps.
+  - Tracks processed archives.
+  - Can be updated incrementally.
+- **Cache database:** stores API query results for faster future lookups.
+  - Includes compound and CAS mapping tables.
 
-  - Build and maintain a full offline SQLite database (`master_db`) of PubChem compounds.
-  - Track processed archives to avoid re-processing.
+### CAS Enrichment
+- Map PubChem CIDs to CAS numbers via PubChem xrefs.
+- Automatic *generic CAS* detection and confidence downgrading.
+- Validation of bidirectional CID↔CAS mappings.
+- Supports concurrent enrichment of large datasets.
 
-- **Online API & Caching**
+### Configurable Settings
+- Fully managed by `pydantic.BaseSettings` and `.env` file (`~/.molid.env`).
+- Includes timeouts, retries, and throttling controls for API calls.
+- Easily editable via CLI (`molid config ...`).
 
-  - Query PubChem REST API on-the-fly (`online-only`).
-  - Transparent per-user cache (`cache_db`) for repeated lookups (`online-cached`).
-
-- **Flexible Search Modes**
-
-  - `offline-basic`: lookup by full or 14-character InChIKey prefix.
-  - `offline-advanced`: filter by CID, InChIKey, SMILES, name, formula, etc.
-  - `online-only` & `online-cached` modes for live API searches.
-
-- **Programmatic API**
-
-  - `run(data)` entry point: accepts ASE `Atoms`, raw XYZ content, file paths, or identifier dict.
-  - Helpers: `search_identifier`, `search_from_file`, `search_from_atoms`, `search_from_input`.
-
-- **CLI Interface**
-
-  - `molid config` to set defaults (master DB, mode).
-  - `molid db create|update|use` to manage offline database.
-  - `molid search <identifier> [--id-type]` to query molecules.
+### CLI Commands
+| Command | Description |
+|----------|-------------|
+| `molid config` | Manage configuration and modes |
+| `molid db create` | Create new offline database |
+| `molid db update` | Fetch & process PubChem archives |
+| `molid db enrich-cas` | Enrich database with CAS mappings |
+| `molid search` | Query molecules from any mode |
 
 ---
 
 ## Installation
 
 ### Requirements
+- **Python** ≥ 3.8
+- **OpenBabel** (via `openbabel-wheel`)
+- Optional system libs on Linux:
+  `sudo apt install libxrender1 libxext6`
 
-- Python 3.8+
-- `openbabel-wheel` (OpenBabel bindings)
-- System libraries for OpenBabel on Linux: `libxrender1`, `libxext6` (e.g., via `apt`, `dnf`, or `pacman`).
-
-### Install via pip
-
+### Install from source
 ```bash
 git clone https://github.com/your_org/MolID.git
 cd MolID
-pip install -r requirements.txt
+pip install -e .
 ```
 
-If OpenBabel fails to install, manually:
-
+If OpenBabel fails:
 ```bash
 pip install openbabel-wheel
 ```
 
-Verify OpenBabel:
-
+Check installation:
 ```bash
+molid --help
 obabel -V
 ```
 
@@ -75,151 +77,145 @@ obabel -V
 
 ## Configuration
 
-MolID uses Pydantic `BaseSettings` with environment variables (or `~/.molid.env`). All vars are prefixed `MOLID_`:
+MolID reads from environment variables or `~/.molid.env`.
+All variables are prefixed `MOLID_`.
 
-| Variable                 | Default                  | Description                                                                       |
-| ------------------------ | ------------------------ | --------------------------------------------------------------------------------- |
-| `MOLID_MASTER_DB`        | `pubchem_data_FULL.db`   | Path to offline master database                                                   |
-| `MOLID_CACHE_DB`         | `pubchem_cache.db`       | Path to API cache database                                                        |
-| `MOLID_MODE`             | `online-cached`          | Search mode (`offline-basic`, `offline-advanced`, `online-only`, `online-cached`) |
-| `MOLID_DOWNLOAD_FOLDER`  | user cache dir/downloads | Temp folder for SDF archives                                                      |
-| `MOLID_PROCESSED_FOLDER` | user data dir/processed  | Staging folder for unpacked SDF files                                             |
-| `MOLID_MAX_FILES`        | `None`                   | Max number of SDF archives to process                                             |
+| Variable | Default | Description |
+|-----------|----------|-------------|
+| `MOLID_MASTER_DB` | `pubchem_data_FULL.db` | Path to offline master database |
+| `MOLID_CACHE_DB` | `pubchem_cache.db` | Path to API cache database |
+| `MOLID_MODE` | `AUTO` | Search mode (`offline-basic`, `offline-advanced`, `online-only`, `online-cached`, `AUTO`) |
+| `MOLID_DOWNLOAD_FOLDER` | `~/.cache/molid/downloads` | Folder for PubChem `.sdf.gz` archives |
+| `MOLID_PROCESSED_FOLDER` | `~/.local/share/molid/processed` | Folder for unpacked `.sdf` files |
+| `MOLID_LOG_FILE` | `~/.local/share/molid/molid.log` | Default log file |
+| `MOLID_HTTP_CONNECT_TIMEOUT` | 10 | API connection timeout (s) |
+| `MOLID_HTTP_READ_TIMEOUT` | 35 | API read timeout (s) |
+| `MOLID_HTTP_RETRIES` | 4 | Retry attempts |
+| `MOLID_HTTP_BACKOFF` | 0.7 | Backoff factor between retries |
 
-You can also configure interactively:
-
+### Example CLI setup
 ```bash
-molid config set-master /path/to/master.db
-molid config set-cache /path/to/cache.db
-molid config set-mode offline-basic
+molid config set-master /data/molid/pubchem_master.db
+molid config set-cache ~/.cache/molid/pubchem_cache.db
+molid config set-mode AUTO
 molid config show
 ```
 
 ---
 
-## Project Structure
+## Usage
 
-```
-MolID/                       # Project root
-├── molid/                   # Main package
-│   ├── __init__.py          # Package init
-│   ├── __main__.py          # Module CLI entrypoint
-│   ├── cli.py               # CLI subcommands
-│   ├── main.py              # `run(data)` universal API
-│   ├── pipeline.py          # High-level search orchestration
-│   ├── utils/               # Utility modules
-│   │   ├── conversion.py    # Format conversions (XYZ, SDF, Atoms)
-│   │   ├── disk_utils.py    # Filesystem helpers
-│   │   ├── ftp_utils.py     # FTP download logic
-│   │   ├── settings.py      # Configuration via Pydantic
-│   │   └── __init__.py
-│   ├── pubchemproc/         # SDF processing pipeline and Online REST client & caching
-│   │   ├── file_handler.py  # Read/write SDF/archives
-│   │   ├── pubchem.py       # SDF parsing logic
-│   │   ├── cache.py         # Local query caching
-│   │   ├── fetch.py         # PubChem API requests
-│   │   └── __init__.py
-│   ├── search/              # Search service and DB lookups
-│   │   ├── service.py       # High-level search interface
-│   │   ├── db_lookup.py     # SQL queries for identifiers
-│   │   └── __init__.py
-│   └── db/                  # Offline & cache DB schema/utilities
-│       ├── db_utils.py      # DB connection and migrations
-│       ├── offline_db_cli.py# CLI for offline DB management
-│       ├── schema.py        # Table definitions
-│       ├── sqlite_manager.py# Low-level SQLite interactions
-│       └── __init__.py
-├── requirements.txt         # Python dependencies
-├── README.md                # This documentation
-└── LICENSE                  # MIT License
+### Create and Update Database
+```bash
+# Create empty offline DB
+molid db create --db-file pubchem_data.db
 
-tests/                       # Unit and integration tests
+# Download and ingest new PubChem SDF batches
+molid db update --max-files 10
 ```
+
+### Enrich CAS mappings
+```bash
+molid db enrich-cas --limit 100000
+```
+
+### Search Examples
+```bash
+# Search by InChIKey
+molid search QGZKDVFQNNGYKY-UHFFFAOYSA-N --id-type inchikey
+
+# Search by formula
+molid search H2O --id-type molecularformula
+
+# Auto-detect identifier type
+molid search 25322-68-3
+```
+
+Outputs a JSON block including compound properties and data source.
 
 ---
 
-## CLI Usage
-
-### Initialize a new offline DB
-
-```bash
-molid db create [--db-file path/to/master.db]
-```
-
-### Update the offline DB
-
-```bash
-molid db update [--db-file pubchem_data.db] [--max-files N]
-```
-
-Downloads, processes, and ingests new PubChem SDF batches.
-
-### Health-check an offline DB
-
-```bash
-molid db use [--db-file pubchem_data.db]
-```
-
-### Search for a molecule
-
-```bash
-molid search <identifier> [--id-type inchikey|smiles|cid|name]
-```
-
-Example:
-
-```bash
-molid search QWERTYUIOPLKJHG --id-type inchikey
-```
-
-Prints JSON properties and the data source mode.
-
-### HTTP tuning (optional)
-
-You can adjust PubChem request behavior via env vars:
-
-- MOLID_HTTP_CONNECT_TIMEOUT (default 10)
-- MOLID_HTTP_READ_TIMEOUT (default 35)
-- MOLID_HTTP_RETRIES (default 4)
-- MOLID_HTTP_BACKOFF (default 0.7)
-
----
-
-## Programmatic API
+## Python API
 
 ```python
 from molid.main import run
-
-# Search from raw XYZ content:
-xyz_str = open("mol.xyz").read()
-results, source = run(xyz_str)
-
-# Or search by identifier:
 from molid.pipeline import search_identifier
+
+# From an ASE Atoms object
+results, source = run(atoms)
+
+# From a SMILES string
 results, source = search_identifier({"smiles": "C1=CC=CC=C1"})
 ```
 
-Other helpers:
+Additional helpers:
+- `search_from_file(path)` → handles `.xyz`, `.extxyz`, `.sdf`
+- `search_from_atoms(atoms)` → handles ASE `Atoms`
+- `search_from_input(data)` → infers type automatically
 
-- `search_from_file(path)` for `.xyz`, `.extxyz`, or `.sdf` files.
-- `search_from_atoms(atoms: ASE Atoms)` for in-memory structures.
+---
+
+## Architecture Overview
+
+```
+molid/
+├── init.py
+├── main.py                   # Enables python -m molid CLI execution
+├── main.py                   # High-level programmatic entrypoint (API wrapper)
+├── cli.py                    # Command-line interface: config, DB ops, search
+├── pipeline.py               # Unified search orchestration (Atoms, file, identifier)
+│
+├── search/
+│   ├── init.py
+│   ├── service.py            # Central search engine with offline/online/auto modes
+│   └── db_lookup.py          # SQLite lookup logic for offline and cache DBs
+│
+├── db/
+│   ├── init.py
+│   ├── schema.py             # Centralized SQLite schema & property definitions
+│   ├── db_utils.py           # Database creation, initialization, UPSERT helpers
+│   ├── sqlite_manager.py     # Generic SQLite wrapper (queries, inserts, schema setup)
+│   ├── offline_db_cli.py     # CLI for managing PubChem offline archives (download, ingest, enrich)
+│   ├── cas_enrich.py         # Parallel CAS↔CID enrichment, confidence scoring, and generic-CAS detection
+│   └── cas_enrich.py
+│
+├── pubchemproc/
+│   ├── init.py
+│   ├── pubchem.py            # SDF file parsing and extraction of compound records
+│   ├── fetch.py              # High-level data retrieval and enrichment via PubChem REST API
+│   ├── pubchem_client.py     # Session management, retry policies, and endpoint resolution
+│   ├── cache.py              # Cache database management and store/fetch synchronization
+│   └── file_handler.py       # File utilities for .gz, .sdf, and MD5 validation
+│
+├── utils/
+│   ├── init.py
+│   ├── formula.py            # Formula parsing and Hill-system canonicalization
+│   ├── conversion.py         # SMILES/InChI/XYZ conversion and isotope tagging via OpenBabel
+│   ├── identifiers.py        # Identifier normalization and type coercion
+│   ├── ftp_utils.py          # FTP/HTTP logic for downloading PubChem archives
+│   ├── disk_utils.py         # Disk space validation utilities
+│   └── settings.py           # Pydantic-based configuration loader & persistence
+
+```
 
 ---
 
 ## Development & Testing
 
 ```bash
-# Run tests
-pytest tests/
-
-# Lint & format
+pytest -v
 black .
 flake8 .
+```
+
+Optional integration test:
+```bash
+molid search --id-type smiles C
 ```
 
 ---
 
 ## License
 
-MolID is released under the MIT License. See [LICENSE](LICENSE) for details.
-
+MolID is released under the **Apache License 2.0**.
+See the [LICENSE](LICENSE) file for full details.
