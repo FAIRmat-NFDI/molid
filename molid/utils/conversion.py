@@ -8,19 +8,29 @@ from typing import Any
 from ase.data import atomic_masses
 from ase.io import write
 from ase import Atoms
-from openbabel import openbabel
 
 # threshold for detecting isotopic masses (amu)
 MASS_TOLERANCE = 0.1
 
+
+def _require_openbabel():
+    try:
+        from openbabel import openbabel  # lazy import
+        return openbabel
+    except Exception:
+        raise ImportError(
+            "Missing optional dependency 'openbabel'. "
+            "Install it to enable XYZ/Atoms → InChIKey conversion."
+        )
 
 def convert_xyz_to_inchikey(
     xyz_content: str,
     isotopes: dict[int, int] | None = None
 ) -> str:
     """Convert XYZ file content to an (optionally isotopic) InChIKey using OpenBabel."""
-    ob_conversion = openbabel.OBConversion()
-    ob_mol = openbabel.OBMol()
+    ob = _require_openbabel()
+    ob_conversion = ob.OBConversion()
+    ob_mol = ob.OBMol()
 
     # xyz → inchi
     if not ob_conversion.SetInAndOutFormats("xyz", "inchi"):
@@ -58,8 +68,7 @@ def atoms_to_inchikey(
     for i, (Z, mass) in enumerate(zip(numbers, masses)):
         std_mass = atomic_masses[Z]
         if abs(mass - std_mass) > MASS_TOLERANCE:
-            mass_number = int(round(mass))
-            isotopes[i + 1] = mass_number
+            isotopes[i + 1] = int(round(mass))
 
     # write to XYZ format
     buf = StringIO()
@@ -67,7 +76,6 @@ def atoms_to_inchikey(
     xyz_content = buf.getvalue()
     # convert, passing isotope flags if any
     return convert_xyz_to_inchikey(xyz_content, isotopes=isotopes or None)
-
 
 def convert_to_inchikey(
     identifier: str,
@@ -78,8 +86,9 @@ def convert_to_inchikey(
     Isotopic information must be encoded in the identifier itself for
     OpenBabel to pick up.
     """
-    conv = openbabel.OBConversion()
-    mol = openbabel.OBMol()
+    ob = _require_openbabel()
+    conv = ob.OBConversion()
+    mol = ob.OBMol()
     fmt_in = {"smiles": "smi"}.get(id_type.lower(), id_type.lower())
 
     if not conv.SetInAndOutFormats(fmt_in, "inchikey"):

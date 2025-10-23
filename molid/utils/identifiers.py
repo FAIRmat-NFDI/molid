@@ -27,17 +27,16 @@ def normalize_query(
         raise UnsupportedIdentifierForMode(
             f"Mode {mode} supports {allowed}; received {k!r}."
         )
-    if k in ("smiles", "canonicalsmiles", "isomericsmiles"):
-        logger.debug('CanonicalSMILES, IsomericSMILES, SMILES and InChi are converted to InChiKey')
-        return "inchikey", convert_to_inchikey(v, "smiles")
 
-    if k == "inchi":
-        return "inchikey", convert_to_inchikey(v, k)
+    if k == "smiles":
+        return "canonicalsmiles", v
+    if k == "isomericsmiles":
+        # master DB doesn't have IsomericSMILES; map to CanonicalSMILES for offline-basic
+        return ("canonicalsmiles" if mode == "basic" else "isomericsmiles"), v
 
-    if k in ("formula", "molecularformula") and not any(ch.isupper() for ch in v):
-        raise ValueError('Given formula has no upper character.')
-
-    if k == "formula":
+    if k in ("formula", "molecularformula"):
+        if k == "formula" and not any(ch.isupper() for ch in v):
+            raise ValueError('Given formula has no upper character.')
         return "molecularformula", v
 
     return k, v

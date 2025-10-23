@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import click
 import json
 import logging
@@ -8,6 +9,7 @@ from logging import StreamHandler, FileHandler, Formatter
 from molid.db.offline_db_cli import update_database, use_database, enrich_cas_database
 from molid.db.db_utils import create_offline_db
 from molid.search.service import SearchService, SearchConfig
+from molid.pipeline import search_from_file
 from molid.utils.settings import load_config, save_config
 
 def _setup_logging(level: str, logfile: str | None) -> None:
@@ -193,12 +195,26 @@ def do_search(identifier: str, id_type: str) -> None:
         raise click.UsageError("No default master DB; use `molid config set-master` first.")
     if cfg.mode == "offline-advanced" and not cfg.cache_db:
         raise click.UsageError("No default cache DB; use `molid config set-cache` first.")
-    svc = SearchService(
-        master_db=cfg.master_db,
-        cache_db=cfg.cache_db,
-        cfg=SearchConfig(mode=cfg.mode),
-    )
-    results, source = svc.search({id_type: identifier})
+    # If the user passed a readable file path, treat it as file input.
+    # This ensures .xyz/.extxyz/.sdf go through the pipeline (and optional OpenBabel path).
+    if os.path.isfile(identifier):
+        try:
+            results, source = search_from_file(identifier)
+        except RuntimeError as e:
+            # Friendly message when OpenBabel is missing for XYZ/Atoms conversion
+            click.echo(f"ERROR: {e}")
+            return
+    else:
+        svc = SearchService(
+            master_db=cfg.master_db,
+            cache_db=cfg.cache_db,
+            cfg=SearchConfig(mode=cfg.mode),
+        )
+        try:
+            results, source = svc.search({id_type: identifier})
+        except RuntimeError as e:
+            click.echo(f"ERROR: {e}")
+            return
     click.echo(f"[Source] {source}\n")
     click.echo(json.dumps(results, indent=2))
 

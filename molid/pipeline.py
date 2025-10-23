@@ -44,7 +44,11 @@ def search_from_atoms(atoms: Atoms) -> tuple[list[dict[str, Any]], str]:
     Search using an ASE Atoms object. Computes its InChIKey, then delegates.
     Returns (list of result dicts, source).
     """
-    inchikey = atoms_to_inchikey(atoms)
+    try:
+        inchikey = atoms_to_inchikey(atoms)
+    except ImportError as e:
+        # Make it crystal clear why XYZ/Atoms search failed
+        raise RuntimeError(str(e))
     return search_identifier({"inchikey": inchikey})
 
 

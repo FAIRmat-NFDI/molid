@@ -1,9 +1,13 @@
+# Core dependencies (required for MolID to run)
 click>=8.0
 ase>=1.1.7
 appdirs>=1.4
 psutil==6.1.1
 pydantic>=2.0
 pydantic-settings>=2.0
-openbabel-wheel
 requests>=2.20.0
 pytest
+
+# Optional features
+# For XYZ → InChIKey conversion:
+# openbabel-wheel

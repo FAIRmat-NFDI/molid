@@ -42,11 +42,13 @@ CREATE TABLE IF NOT EXISTS compound_data (
     MonoisotopicMass    REAL,
     CAS                 TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_inchikey ON compound_data(InChIKey);
-CREATE INDEX IF NOT EXISTS idx_compound_inchikey14 ON compound_data(substr(InChIKey, 1, 14));
+CREATE INDEX IF NOT EXISTS idx_inchikey                 ON compound_data(InChIKey);
+CREATE INDEX IF NOT EXISTS idx_compound_inchikey14      ON compound_data(substr(InChIKey, 1, 14));
+CREATE INDEX IF NOT EXISTS idx_compound_inchi           ON compound_data(InChI);
+CREATE INDEX IF NOT EXISTS idx_compound_canonicalsmiles ON compound_data(CanonicalSMILES);
 
-CREATE INDEX IF NOT EXISTS idx_compound_cas ON compound_data(CAS);
-CREATE INDEX IF NOT EXISTS idx_compound_formula ON compound_data(MolecularFormula);
+CREATE INDEX IF NOT EXISTS idx_compound_cas             ON compound_data(CAS);
+CREATE INDEX IF NOT EXISTS idx_compound_formula         ON compound_data(MolecularFormula);
 
 CREATE TABLE IF NOT EXISTS cas_mapping (
     CAS         TEXT NOT NULL,
@@ -117,8 +119,11 @@ CREATE TABLE IF NOT EXISTS cached_molecules (
     Charge             INTEGER,
     fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
-CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(substr(InChIKey, 1, 14));
+CREATE INDEX IF NOT EXISTS idx_cache_inchikey           ON cached_molecules(InChIKey);
+CREATE INDEX IF NOT EXISTS idx_cache_inchikey14         ON cached_molecules(substr(InChIKey, 1, 14));
+CREATE INDEX IF NOT EXISTS idx_cache_inchi              ON cached_molecules(InChI);
+CREATE INDEX IF NOT EXISTS idx_cache_canonicalsmiles    ON cached_molecules(CanonicalSMILES);
+CREATE INDEX IF NOT EXISTS idx_cache_isomericsmiles     ON cached_molecules(IsomericSMILES);
 
 
 CREATE INDEX IF NOT EXISTS idx_cache_formula            ON cached_molecules(MolecularFormula);

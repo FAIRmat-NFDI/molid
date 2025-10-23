@@ -51,28 +51,31 @@ It is designed to provide robust compound lookup, CAS mapping, and caching for w
 
 ### Requirements
 - **Python** ≥ 3.8
-- **OpenBabel** (via `openbabel-wheel`)
+- Optional dependency: **OpenBabel** (for `.xyz` / ASE Atoms → InChIKey conversion)
 - Optional system libs on Linux:
-  `sudo apt install libxrender1 libxext6`
+  ```bash
+  sudo apt install libxrender1 libxext6
+  ```
 
 ### Install from source
 ```bash
-git clone https://github.com/your_org/MolID.git
-cd MolID
-pip install -e .
+pip install molid
 ```
 
-If OpenBabel fails:
+### Optional: Enable OpenBabel support
+MolID can optionally use **OpenBabel** to convert `.xyz` or ASE `Atoms` structures into InChIKeys.
+If you only search by SMILES, InChI, or InChIKey, you can skip this dependency.
+
+To enable OpenBabel support:
 ```bash
+pip install molid[openbabel]
+# or, alternatively:
 pip install openbabel-wheel
 ```
-
-Check installation:
-```bash
-molid --help
-obabel -V
+If OpenBabel is not installed and you run an `.xyz` or `Atoms` search, MolID will show:
 ```
-
+ERROR: Missing optional dependency 'openbabel'. Install it to enable XYZ/Atoms → InChIKey conversion.
+```
 ---
 
 ## Configuration
