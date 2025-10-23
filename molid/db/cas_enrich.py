@@ -6,7 +6,7 @@ import re
 import time
 import math
 import sqlite3
-from typing import Iterable, Dict, List, Set, Tuple, Iterable
+from typing import Iterable, Dict, List, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote
 
@@ -152,6 +152,15 @@ def _flush_if_needed(db_path: str, buffer: List[Tuple[str, int, str, int]], thre
 # Post-processing
 # =========================
 
+def _detect_main_table(conn) -> str:
+    rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    names = {r[0].lower() for r in rows}
+    if "compound_data" in names:
+        return "compound_data"
+    if "cached_molecules" in names:
+        return "cached_molecules"
+    raise RuntimeError("Neither compound_data nor cached_molecules table found.")
+
 GENERIC_HINTS = re.compile(
     r"(poly|copolymer|oligomer|resin|mixture|blend|grade|uvcb|"
     r"natural\s+oil|extract|essence|unspecified|trade\s+name)",
@@ -170,7 +179,6 @@ def _downgrade_generic_cas(db: DatabaseManager, cas_values: Iterable[str]) -> No
     if not cas_list:
         return
 
-    import sqlite3
     CHUNK = 50_000  # avoid oversized temp tables on huge runs
     KEYWORD_SQL = (
         "%poly% OR %copolymer% OR %oligomer% OR %resin% OR %mixture% OR %blend% OR "
@@ -179,71 +187,74 @@ def _downgrade_generic_cas(db: DatabaseManager, cas_values: Iterable[str]) -> No
 
     with sqlite3.connect(db.db_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
+        main = _detect_main_table(conn)  # NEW
 
         for start in range(0, len(cas_list), CHUNK):
             chunk = cas_list[start:start+CHUNK]
-
-            # 1) Load affected CAS into a temp table for this chunk
             conn.execute("DROP TABLE IF EXISTS _affected_cas")
             conn.execute("CREATE TEMP TABLE _affected_cas (CAS TEXT PRIMARY KEY)")
             conn.executemany("INSERT OR IGNORE INTO _affected_cas(CAS) VALUES (?)", ((c,) for c in chunk))
 
-            # 2) Bulk-downgrade CAS that clearly span multiple chemistries (or have missing formula)
+            # 1) multi-chemistry / missing-formula
             conn.execute(f"""
                 UPDATE cas_mapping
                 SET confidence = 0
                 WHERE CAS IN (
-                  SELECT cm.CAS
-                  FROM cas_mapping cm
-                  JOIN compound_data cd ON cd.CID = cm.CID
-                  JOIN _affected_cas ac ON ac.CAS = cm.CAS
-                  GROUP BY cm.CAS
-                  HAVING
-                       COUNT(DISTINCT substr(cd.InChIKey,1,14)) > 1
+                SELECT cm.CAS
+                FROM cas_mapping cm
+                JOIN {main} cd ON cd.CID = cm.CID
+                JOIN _affected_cas ac ON ac.CAS = cm.CAS
+                GROUP BY cm.CAS
+                HAVING
+                    COUNT(DISTINCT substr(cd.InChIKey,1,14)) > 1
                     OR COUNT(DISTINCT cd.MolecularFormula)      > 1
                     OR SUM(CASE
-                              WHEN cd.MolecularFormula IS NULL
-                                   OR TRIM(cd.MolecularFormula) IN ('','N/A','NA','?')
-                              THEN 1 ELSE 0 END) > 0
+                            WHEN cd.MolecularFormula IS NULL
+                                OR TRIM(cd.MolecularFormula) IN ('','N/A','NA','?')
+                            THEN 1 ELSE 0 END) > 0
                 )
             """)
 
-            # 3) Bulk-downgrade CAS with mixture/polymer textual hints
-            #    We keep multiple LIKE clauses (can’t parametrize wildcards portably across many patterns).
-            conn.execute("""
+            # 2) polymer/mixture keyword hints
+            conn.execute(f"""
                 UPDATE cas_mapping
                 SET confidence = 0
                 WHERE CAS IN (
-                  SELECT DISTINCT cm.CAS
-                  FROM cas_mapping cm
-                  JOIN compound_data cd ON cd.CID = cm.CID
-                  JOIN _affected_cas ac ON ac.CAS = cm.CAS
-                  WHERE (cd.Title     LIKE '%poly%' OR cd.IUPACName LIKE '%poly%')
-                     OR (cd.Title     LIKE '%copolymer%' OR cd.IUPACName LIKE '%copolymer%')
-                     OR (cd.Title     LIKE '%oligomer%' OR cd.IUPACName LIKE '%oligomer%')
-                     OR (cd.Title     LIKE '%resin%' OR cd.IUPACName LIKE '%resin%')
-                     OR (cd.Title     LIKE '%mixture%' OR cd.IUPACName LIKE '%mixture%')
-                     OR (cd.Title     LIKE '%blend%' OR cd.IUPACName LIKE '%blend%')
-                     OR (cd.Title     LIKE '%grade%' OR cd.IUPACName LIKE '%grade%')
-                     OR (cd.Title     LIKE '%uvcb%' OR cd.IUPACName LIKE '%uvcb%')
-                     OR (cd.Title     LIKE '%natural oil%' OR cd.IUPACName LIKE '%natural oil%')
-                     OR (cd.Title     LIKE '%extract%' OR cd.IUPACName LIKE '%extract%')
-                     OR (cd.Title     LIKE '%essence%' OR cd.IUPACName LIKE '%essence%')
-                     OR (cd.Title     LIKE '%unspecified%' OR cd.IUPACName LIKE '%unspecified%')
-                     OR (cd.Title     LIKE '%trade name%' OR cd.IUPACName LIKE '%trade name%')
+                SELECT DISTINCT cm.CAS
+                FROM cas_mapping cm
+                JOIN {main} cd ON cd.CID = cm.CID
+                JOIN _affected_cas ac ON ac.CAS = cm.CAS
+                WHERE (cd.Title     LIKE '%poly%' OR cd.IUPACName LIKE '%poly%')
+                    OR (cd.Title     LIKE '%copolymer%' OR cd.IUPACName LIKE '%copolymer%')
+                    OR (cd.Title     LIKE '%oligomer%' OR cd.IUPACName LIKE '%oligomer%')
+                    OR (cd.Title     LIKE '%resin%' OR cd.IUPACName LIKE '%resin%')
+                    OR (cd.Title     LIKE '%mixture%' OR cd.IUPACName LIKE '%mixture%')
+                    OR (cd.Title     LIKE '%blend%' OR cd.IUPACName LIKE '%blend%')
+                    OR (cd.Title     LIKE '%grade%' OR cd.IUPACName LIKE '%grade%')
+                    OR (cd.Title     LIKE '%uvcb%' OR cd.IUPACName LIKE '%uvcb%')
+                    OR (cd.Title     LIKE '%natural oil%' OR cd.IUPACName LIKE '%natural oil%')
+                    OR (cd.Title     LIKE '%extract%' OR cd.IUPACName LIKE '%extract%')
+                    OR (cd.Title     LIKE '%essence%' OR cd.IUPACName LIKE '%essence%')
+                    OR (cd.Title     LIKE '%unspecified%' OR cd.IUPACName LIKE '%unspecified%')
+                    OR (cd.Title     LIKE '%trade name%' OR cd.IUPACName LIKE '%trade name%')
                 )
             """)
-
         conn.commit()
 
 def _update_best_cas_for_cids(db: DatabaseManager, cids: Iterable[int]) -> None:
-    cid_list = list(set(int(c) for c in cids))
-    if not cid_list:
-        return
-    import sqlite3
+    cid_list = list({int(c) for c in cids if c is not None})
     with sqlite3.connect(db.db_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
-        # Use a temp table to limit the update to affected CIDs
+
+        # If caller didn't pass any CIDs (or they got filtered away),
+        # update for all CIDs that appear in cas_mapping.
+        if not cid_list:
+            rows = conn.execute("SELECT DISTINCT CID FROM cas_mapping").fetchall()
+            cid_list = [int(r[0]) for r in rows]
+
+        if not cid_list:
+            return
+
         conn.execute("CREATE TEMP TABLE _affected (CID INTEGER PRIMARY KEY)")
         conn.executemany("INSERT OR IGNORE INTO _affected(CID) VALUES (?)", ((c,) for c in cid_list))
         conn.execute("""
@@ -253,7 +264,7 @@ def _update_best_cas_for_cids(db: DatabaseManager, cids: Iterable[int]) -> None:
           FROM cas_mapping cm
           WHERE cm.CID = compound_data.CID
             AND cm.confidence > 0
-          ORDER BY (cm.source='xref') DESC,
+          ORDER BY (cm.source='synonym') DESC,
                    cm.confidence DESC,
                    CAST(substr(cm.CAS, 1, instr(cm.CAS,'-')-1) AS INTEGER) ASC,
                    cm.CAS ASC
@@ -263,6 +274,7 @@ def _update_best_cas_for_cids(db: DatabaseManager, cids: Iterable[int]) -> None:
         """)
         conn.execute("DROP TABLE _affected")
         conn.commit()
+
 
 # =========================
 # Batch fetching (orchestrated)
@@ -361,13 +373,34 @@ def enrich_cas_for_cids(
 
     # Convert to insertable rows and collect which entities we touched
     row_buffer, affected_cids, affected_cas = _prepare_insert_rows(cid_to_rns)
-
-    # Flush in chunks to cap memory and speed up SQLite
     inserted_total = 0
-    # flush in pieces if buffer is huge
+
+    # Flush XREF rows first no matter what
     for i in range(0, len(row_buffer), FLUSH_EVERY):
         slice_rows = row_buffer[i:i+FLUSH_EVERY]
         inserted_total += _bulk_upsert_cas(db.db_path, slice_rows)
+
+    if use_synonyms:
+        from molid.pubchemproc.pubchem_client import get_synonyms
+        # Fetch synonyms for all CIDs you’re enriching (covers xref-miss cases)
+        syn_target_cids = all_cids
+
+        syn_rows = []
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = {ex.submit(get_synonyms, cid): cid for cid in syn_target_cids}
+            for fut in as_completed(futs):
+                cid = futs[fut]
+                try:
+                    syns = fut.result() or []
+                except Exception:
+                    syns = []
+                for rn in syns:
+                    if _is_cas_rn(rn):
+                        syn_rows.append((rn, cid, "synonym", 2))
+                        affected_cids.add(cid)   # make sure we update winner for synonym-only CIDs
+                        affected_cas.add(rn)     # ensure generics downgrade sees synonym RNs
+        inserted_total += _bulk_upsert_cas(db.db_path, syn_rows)
+
 
     # Post-processing: downgrade generic CAS, then choose best CAS per CID
     _downgrade_generic_cas(db, affected_cas)
@@ -375,3 +408,47 @@ def enrich_cas_for_cids(
 
     # synonyms path intentionally omitted (slow/noisy); preserve parameter for API stability
     return inserted_total
+
+
+def cache_enrich_single_cid(
+    db_file: str,
+    cid: int,
+    synonyms: list[str],
+    xrefs_rn: list[str],
+) -> None:
+    """
+    Cache-miss path:
+      - First valid CAS from synonyms => confidence=2 (winner)
+      - Other valid synonyms + all valid xrefs => confidence=1
+      - Then downgrade generics to 0 via existing heuristic
+      - Dedup via INSERT OR IGNORE
+    """
+    db = DatabaseManager(db_file)
+    rows = []
+    affected: set[str] = set()
+    seen = set()
+
+    # Synonyms (ordered): first valid -> 2, rest -> 1
+    first_set = False
+    for s in (synonyms or []):
+        if _is_cas_rn(s):
+            conf = 2 if not first_set else 1
+            first_set = True if not first_set else first_set
+            key = (s, cid, "synonym")
+            if key not in seen:
+                seen.add(key)
+                rows.append((s, cid, "synonym", conf))
+                affected.add(s)
+
+    # XRefs/RN (unordered): all valid -> 1
+    for rn in (xrefs_rn or []):
+        if _is_cas_rn(rn):
+            key = (rn, cid, "xref")
+            if key not in seen:
+                seen.add(key)
+                rows.append((rn, cid, "xref", 1))
+                affected.add(rn)
+
+    if rows:
+        _bulk_upsert_cas(db.db_path, rows)
+        _downgrade_generic_cas(db, affected)

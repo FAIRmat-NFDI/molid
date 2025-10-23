@@ -115,14 +115,13 @@ CREATE TABLE IF NOT EXISTS cached_molecules (
     TPSA               REAL,
     Complexity         INTEGER,
     Charge             INTEGER,
-    CAS                TEXT,
     fetched_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey ON cached_molecules(InChIKey);
 CREATE INDEX IF NOT EXISTS idx_cache_inchikey14 ON cached_molecules(substr(InChIKey, 1, 14));
 
-CREATE INDEX IF NOT EXISTS idx_cache_cas ON cached_molecules(CAS);
-CREATE INDEX IF NOT EXISTS idx_cache_formula ON cached_molecules(MolecularFormula);
+
+CREATE INDEX IF NOT EXISTS idx_cache_formula            ON cached_molecules(MolecularFormula);
 
 CREATE TABLE IF NOT EXISTS cas_mapping (
     CAS         TEXT NOT NULL,
@@ -141,4 +140,4 @@ CREATE INDEX IF NOT EXISTS idx_cas_mapping_cid ON cas_mapping(CID);
 CACHE_COLUMNS = _extract_columns(CACHE_SCHEMA, "cached_molecules")
 
 # derive API request list from the same source of truth
-DEFAULT_PROPERTIES_CACHE = tuple(c for c in CACHE_COLUMNS if c not in {"CID", "CAS"})
+DEFAULT_PROPERTIES_CACHE = tuple(c for c in CACHE_COLUMNS if c not in {"CID"})

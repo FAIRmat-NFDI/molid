@@ -9,6 +9,7 @@ from molid.pubchemproc.pubchem_client import (
     get_properties,
     get_pugview,
     get_xrefs_rn,
+    get_synonyms,
 )
 
 def _is_cas_rn(candidate: str) -> bool:
@@ -109,13 +110,8 @@ def fetch_molecule_data(
                 iupac = _fetch_iupac_from_pugview(cid_int)
                 if iupac:
                     rec["IUPACName"] = iupac
-            rns = get_xrefs_rn(cid_int)
-            if rns:
-                for rn in rns:
-                    if _is_cas_rn(rn):
-                        rec["CAS"] = rn
-                        break
-                rec.setdefault("CAS", rns[0])
+
+            _prefer_synonym_cas(cid_int, rec)
         return props
 
     try:
@@ -139,13 +135,24 @@ def fetch_molecule_data(
                 rec["IUPACName"] = iupac
             elif rec.get("Title"):
                 rec["IUPACName"] = rec["Title"]
-        rns = get_xrefs_rn(cid)
-        if rns:
-            for rn in rns:
-                if _is_cas_rn(rn):
-                    rec["CAS"] = rn
-                    break
-            rec.setdefault("CAS", rns[0])
-        if id_type.lower() == "cas":
+
+        _prefer_synonym_cas(cid, rec)
+
+        if id_type.lower() == "cas" and len(cids) == 1:
             rec.setdefault("CAS", str(id_value))
     return props
+
+def _prefer_synonym_cas(cid: int, rec: dict) -> None:
+    # Short timeout for synonyms; fail open to xrefs
+    syns = get_synonyms(cid) or []
+    for s in syns:
+        if _is_cas_rn(s):
+            rec["CAS"] = s
+            break
+    rns = get_xrefs_rn(cid) or []
+    if "CAS" not in rec and rns:
+        for rn in rns:
+            if _is_cas_rn(rn):
+                rec["CAS"] = rn
+                break
+        rec.setdefault("CAS", rns[0] if rns else None)

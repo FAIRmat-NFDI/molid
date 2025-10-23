@@ -72,7 +72,7 @@ def master_lookup_by_cas(offline_db_file: str, cas: str) -> list[dict[str, Any]]
     db = DatabaseManager(offline_db_file)
     sql = (f"SELECT cd.* FROM {OFFLINE_TABLE_CAS} cm "
            f"JOIN {OFFLINE_TABLE_MASTER} cd ON cd.CID = cm.CID "
-           f"WHERE cm.CAS = ? ORDER BY cm.confidence DESC")
+           f"WHERE cm.CAS = ? ORDER BY (cm.source='synonym') DESC, cm.confidence DESC")
     rows = db.query_all(sql, [cas])
     return rows or []
 
@@ -94,31 +94,32 @@ def advanced_search(
 
     key = (id_type or "").lower()
     if key == "cas":
-        # Prefer mapping (confidence DESC, updated_at DESC) then fallback to direct field
         sql = (
-            f"SELECT m.* FROM cas_mapping cm "
+            f"SELECT m.*, "
+            f"( SELECT cm2.CAS FROM cas_mapping cm2 "
+            f"  WHERE cm2.CID = m.CID "
+            f"  ORDER BY (cm2.source='synonym') DESC, cm2.confidence DESC, cm2.updated_at DESC "
+            f"  LIMIT 1"
+            f") AS CAS, "
+            f"cm.CAS AS MatchedCAS "
+            f"FROM cas_mapping cm "
             f"JOIN {CACHE_TABLE} m ON m.CID = cm.CID "
             f"WHERE cm.CAS = ? "
-            f"ORDER BY cm.confidence DESC, cm.updated_at DESC "
-            f"LIMIT 1"
+            f"ORDER BY (cm.source='synonym') DESC, cm.confidence DESC, cm.updated_at DESC"
         )
         rows = mgr.query_all(sql, [id_value])
-        if not rows:
-            rows = mgr.query_all(
-                f"SELECT * FROM {CACHE_TABLE} WHERE CAS = ? LIMIT 1", [id_value]
-            )
+        # no fallback to m.CAS anymore (we don't write it)
         return [{k: v for k, v in r.items() if v is not None} for r in (rows or [])]
 
     if key == "cid":
         # Return one row; CAS is the best mapping (or existing row CAS as fallback)
         sql = (
             f"SELECT m.*, "
-            f"COALESCE(("
-            f"  SELECT cm.CAS FROM cas_mapping cm "
+            f"( SELECT cm.CAS FROM cas_mapping cm "
             f"  WHERE cm.CID = m.CID "
-            f"  ORDER BY cm.confidence DESC, cm.updated_at DESC "
+            f"  ORDER BY (cm.source='synonym') DESC, cm.confidence DESC, cm.updated_at DESC "
             f"  LIMIT 1"
-            f"), m.CAS) AS CAS "
+            f") AS CAS "
             f"FROM {CACHE_TABLE} m WHERE m.CID = ?"
         )
         rows = mgr.query_all(sql, [id_value])
@@ -134,7 +135,7 @@ def advanced_search(
     if not column:
         raise ValueError(f"Unsupported search field '{id_type}' for table '{CACHE_TABLE}'")
 
-    sql = f"SELECT * FROM {CACHE_TABLE} WHERE {column} = ?"
+    sql = f"SELECT m.*,( SELECT cm.CAS FROM cas_mapping cm WHERE cm.CID = m.CID ORDER BY (cm.source='synonym') DESC, cm.confidence DESC, cm.updated_at DESC LIMIT 1) AS CAS FROM cached_molecules m WHERE {column} = ?"
     results = mgr.query_all(sql, [id_value])
     if results:
         return [{k: v for k, v in rec.items() if v is not None} for rec in results]

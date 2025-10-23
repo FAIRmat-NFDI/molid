@@ -53,6 +53,20 @@ class AppConfig(BaseSettings):
         env_prefix="MOLID_",
         env_file=str(ENV_FILE),
     )
+    cas_expand_cache: bool = Field(
+        True,
+        description=(
+            "Whether to automatically expand and cache all CIDs when a CAS is queried "
+            "(via PubChem resolve)."
+        ),
+    )
+    cas_expand_cache_limit: int = Field(
+        50,
+        description=(
+            "Maximum number of CIDs to cache when expanding a CAS query. "
+            "Set to 0 to disable caching, even if expansion is enabled."
+        ),
+    )
 
 def load_config() -> AppConfig:
     """Load application configuration from environment and ~/.molid.env"""

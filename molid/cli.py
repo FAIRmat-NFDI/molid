@@ -202,5 +202,19 @@ def do_search(identifier: str, id_type: str) -> None:
     click.echo(f"[Source] {source}\n")
     click.echo(json.dumps(results, indent=2))
 
+@config.command("set-cas-expand")
+@click.argument("enabled", type=bool)
+def set_cas_expand(enabled: bool) -> None:
+    """Enable or disable automatic CAS expansion/caching."""
+    save_config(cas_expand_cache=enabled)
+    click.echo(f"CAS expand caching set to: {enabled}")
+
+@config.command("set-cas-limit")
+@click.argument("limit", type=int)
+def set_cas_limit(limit: int) -> None:
+    """Set max number of CIDs to cache during CAS expansion."""
+    save_config(cas_expand_cache_limit=limit)
+    click.echo(f"CAS expand cache limit set to: {limit}")
+
 if __name__ == "__main__":
     cli()

@@ -158,3 +158,22 @@ def get_xrefs_rn(cid: int) -> list[str]:
         return []
     except Exception:
         return []
+
+
+def get_synonyms(cid: int) -> list[str]:
+    """Return PubChem synonyms (StringList). Empty on transient/404."""
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/synonyms/JSON"
+    s = get_session()
+    try:
+        r = s.get(url, timeout=_TIMEOUT)
+        if not r.ok:
+            return []
+        info = r.json().get("InformationList", {}).get("Information", [])
+        if not info:
+            return []
+        syns = info[0].get("Synonym") or []
+        return [s for s in syns if isinstance(s, str)]
+    except requests.RequestException:
+        return []
+    except Exception:
+        return []
