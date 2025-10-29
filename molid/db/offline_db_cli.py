@@ -4,7 +4,7 @@ import logging
 import ftplib
 from datetime import datetime, UTC, date
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Optional, Tuple
 
 import click
 

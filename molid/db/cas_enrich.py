@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import re
 import time
-import math
 import sqlite3
 from typing import Iterable, Dict, List, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -180,10 +179,11 @@ def _downgrade_generic_cas(db: DatabaseManager, cas_values: Iterable[str]) -> No
         return
 
     CHUNK = 50_000  # avoid oversized temp tables on huge runs
-    KEYWORD_SQL = (
-        "%poly% OR %copolymer% OR %oligomer% OR %resin% OR %mixture% OR %blend% OR "
-        "%grade% OR %uvcb% OR %natural oil% OR %extract% OR %essence% OR %unspecified% OR %trade name%"
-    )
+    # Could be added later for mark generic CAS numbers
+    # KEYWORD_SQL = (
+    #     "%poly% OR %copolymer% OR %oligomer% OR %resin% OR %mixture% OR %blend% OR "
+    #     "%grade% OR %uvcb% OR %natural oil% OR %extract% OR %essence% OR %unspecified% OR %trade name%"
+    # )
 
     with sqlite3.connect(db.db_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL")

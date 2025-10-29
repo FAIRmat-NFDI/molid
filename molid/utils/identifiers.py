@@ -2,8 +2,6 @@ from __future__ import annotations
 from typing import Any, Literal
 import logging
 
-from molid.utils.conversion import convert_to_inchikey
-
 logger = logging.getLogger(__name__)
 
 class UnsupportedIdentifierForMode(Exception):

@@ -5,7 +5,7 @@ import time
 import logging
 import socket
 import re
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
 
 from molid.pubchemproc.file_handler import (

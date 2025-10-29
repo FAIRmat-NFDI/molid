@@ -1,11 +1,12 @@
-from molid.pubchemproc.cache import get_cached_or_fetch, store_cached_data
+from molid.pubchemproc.cache import get_cached_or_fetch
 from molid.db.db_utils import create_cache_db, create_offline_db
 from molid.db.sqlite_manager import DatabaseManager
 import molid.pubchemproc.pubchem_client as pc
 from molid.search.db_lookup import master_lookup_by_cas, advanced_search
 
 def test_read_then_write_through(tmp_path, monkeypatch):
-    db = str(tmp_path / "cache.db"); create_cache_db(db)
+    db = str(tmp_path / "cache.db")
+    create_cache_db(db)
 
     # 1) No cache → fetch → store
     def fake_resolve_to_cids(id_type, id_value): return [280]
@@ -24,7 +25,8 @@ def test_read_then_write_through(tmp_path, monkeypatch):
     assert recs2 and from_cache2 is True
 
 def test_cas_mapping_written_but_not_row_cas(tmp_path, monkeypatch):
-    db = str(tmp_path / "cache2.db"); create_cache_db(db)
+    db = str(tmp_path / "cache2.db")
+    create_cache_db(db)
     # Full flow: resolve→properties→store (no network)
     monkeypatch.setattr(pc, "resolve_to_cids", lambda id_type, id_value: [50])
     monkeypatch.setattr(pc, "get_properties", lambda cid, props: [{
@@ -64,12 +66,16 @@ def _seed_cache(db):
     ])
 
 def test_master_lookup_by_cas_prefers_synonym(tmp_path):
-    db = str(tmp_path / "master.db"); create_offline_db(db); _seed_master(db)
+    db = str(tmp_path / "master.db")
+    create_offline_db(db)
+    _seed_master(db)
     rows = master_lookup_by_cas(db, "67-64-1")
     assert rows and rows[0]["CID"] == 100  # synonym row wins over xref row
 
 def test_cache_advanced_search_cas_join(tmp_path):
-    db = str(tmp_path / "cache.db"); create_cache_db(db); _seed_cache(db)
+    db = str(tmp_path / "cache.db")
+    create_cache_db(db)
+    _seed_cache(db)
     rows = advanced_search(db, "CAS", "124-38-9")
     assert rows and rows[0]["CID"] == 200
     # Ensure derived CAS is present in projection

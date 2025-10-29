@@ -5,8 +5,10 @@ import molid.search.service as svc_mod
 from pathlib import Path
 
 # Create empty, readable files so the service doesn't skip for missing files
-tmp_master = Path("/tmp/master.db"); tmp_master.touch()
-tmp_cache  = Path("/tmp/cache.db");  tmp_cache.touch()
+tmp_master = Path("/tmp/master.db")
+tmp_master.touch()
+tmp_cache  = Path("/tmp/cache.db")
+tmp_cache.touch()
 
 def make_service(sources, network="allow", cache_writes=True):
     cfg = SearchConfig(sources=sources, network=network, cache_writes=cache_writes)

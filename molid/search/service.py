@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import os
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from collections.abc import Callable
-from typing import Any, Iterable, Literal
+from typing import Any
 
 from molid.search.db_lookup import basic_offline_search, advanced_search
 from molid.pubchemproc.cache import get_cached_or_fetch, store_cached_data

@@ -3,12 +3,16 @@ from molid.pubchemproc.fetch import fetch_molecule_data
 
 class _Resp:
     def __init__(self, ok=True, status=200, payload=None, url="http://x", reason="OK"):
-        self.ok = ok; self.status_code = status; self._payload = payload or {}
-        self.url = url; self.reason = reason
+        self.ok = ok
+        self.status_code = status
+        self._payload = payload or {}
+        self.url = url
+        self.reason = reason
     def json(self): return self._payload
     def raise_for_status(self):
         if not (200 <= self.status_code < 300):
-            from requests import HTTPError; raise HTTPError(f"{self.status_code} {self.reason}", response=self)
+            from requests import HTTPError
+            raise HTTPError(f"{self.status_code} {self.reason}", response=self)
 
 def _mk_session(queue):
     # queue is list of _Resp that will be returned on successive .get calls

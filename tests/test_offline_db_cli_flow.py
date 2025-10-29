@@ -6,8 +6,10 @@ from molid.db import offline_db_cli as odc
 
 def test_update_database_happy_path(monkeypatch, tmp_path):
     db = str(tmp_path / "master.db")
-    downloads = tmp_path / "dl"; downloads.mkdir()
-    processed = tmp_path / "proc"; processed.mkdir()
+    downloads = tmp_path / "dl"
+    downloads.mkdir()
+    processed = tmp_path / "proc"
+    processed.mkdir()
 
     # init schema
     create_offline_db(db)

@@ -6,7 +6,7 @@ import warnings
 
 from typing import Any
 from molid.db.sqlite_manager import DatabaseManager
-from molid.db.schema import CACHE_COLUMNS, OFFLINE_COLUMNS
+from molid.db.schema import CACHE_COLUMNS
 
 logger = logging.getLogger(__name__)
 
