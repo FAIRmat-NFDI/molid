@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import os
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Iterable, Literal
 
 from molid.search.db_lookup import basic_offline_search, advanced_search
-from molid.pubchemproc.cache import get_cached_or_fetch
+from molid.pubchemproc.cache import get_cached_or_fetch, store_cached_data
 from molid.db.db_utils import create_cache_db
 from molid.pubchemproc.fetch import fetch_molecule_data
 from molid.utils.identifiers import normalize_query, UnsupportedIdentifierForMode
@@ -48,13 +48,12 @@ class DatabaseNotFound(Exception):
 # Configuration dataclass
 # ---------------------------------------------------------------------------
 
-
 @dataclass
 class SearchConfig:
-    """User‑supplied runtime configuration for a :class:`SearchService` instance."""
-
-    mode: str  # offline-basic | offline-advanced | online-only | online-cached | auto
-    auto_priority: list[str] | None = None
+    """Runtime configuration for SearchService (ordered backends)."""
+    sources: list[str]
+    network: str = "allow"       # "allow" | "forbid"
+    cache_writes: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -78,30 +77,26 @@ class SearchService:
         self.cache_db = cache_db
         self.cfg = cfg
 
-        # Fail fast if the selected mode requires files that are not present.
+        # Fail fast if requested sources require local files.
         self._ensure_required_files()
 
-        # Make sure the cache schema exists *before* we might write to it.
-        if self.cfg.mode == "online-cached":
+        # If write-through caching is enabled and api may be used, ensure cache schema exists.
+        if "api" in (self.cfg.sources or []) and self.cfg.cache_writes:
             create_cache_db(self.cache_db)
 
         self._dispatch: dict[str, Callable[[dict[str, Any]], tuple[list[dict[str, Any]], str]]] = {
-            "offline-basic": self._search_offline_basic,
-            "offline-advanced": self._search_offline_advanced,
-            "online-only": self._search_online_only,
-            "online-cached": self._search_online_cached,
+            "master": self._search_master,
+            "cache":  self._search_cache,
+            "api":    self._search_api,
         }
-
-        if self.cfg.mode != "auto" and self.cfg.mode not in self._dispatch:
-            raise ValueError(f"Unknown mode: {self.cfg.mode!r}")
 
     # ---------------------------------------------------------------------
     # Public API
     # ---------------------------------------------------------------------
 
     def search(self, query: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
-        """Resolve query according to the configured mode (or auto priority)."""
-        logger.debug("Search request via %s: %s", self.cfg.mode, query)
+        """Resolve query by walking configured sources in order."""
+        logger.debug("Search request via sources=%s: %s", self.cfg.sources, query)
 
         # Validate input: exactly one key
         if not isinstance(query, dict):
@@ -110,41 +105,32 @@ class SearchService:
             raise ValueError(f"Expected exactly 1 search parameter, got {len(query)}.")
 
         query_lc = {k.lower(): v for k, v in query.items()}
-        mode = (self.cfg.mode or "").lower()
+        sources = [s.lower() for s in (self.cfg.sources or [])]
+        if not sources:
+            raise ValueError("No sources configured. Set AppConfig.sources to e.g. ['cache','api'].")
 
-        # Direct mode
-        if self.cfg.mode != "auto":
-            mode = self.cfg.mode
-            if mode not in self._dispatch:
-                raise ValueError(f"Unknown mode: {mode!r}")
-            return self._dispatch[mode](query_lc)
-
-        # AUTO MODE
-        priority = (self.cfg.auto_priority
-                    or ["offline-basic", "online-cached", "online-only"])
-
-        for tier in priority:
+        for tier in sources:
             # 1) Quick availability/permission gates (same as before)
-            if tier.startswith("offline"):
-                if not _has_readable_file(self.master_db):
-                    logger.debug("Skip %s: master DB missing/unreadable", tier)
+            if tier == "master" and not _has_readable_file(self.master_db):
+                logger.debug("Skip master: master DB missing/unreadable")
+                continue
+            if tier == "cache" and not _has_readable_file(self.cache_db):
+                logger.debug("Skip cache: cache DB missing/unreadable")
+                continue
+            if tier == "api":
+                if self.cfg.network != "allow":
+                    logger.debug("Skip api: network forbidden")
                     continue
-                if tier == "offline-advanced" and not _has_readable_file(self.cache_db):
-                    logger.debug("Skip %s: cache DB missing/unreadable", tier)
-                    continue
+                if self.cfg.cache_writes and not _is_writable_dir(self.cache_db):
+                    logger.debug("api cache writes disabled (cache dir not writable); proceeding without writes")
 
-            if tier == "online-cached":
-                # allow lazy creation, but ensure parent dir is writable
-                if not _is_writable_dir(self.cache_db):
-                    logger.debug("Skip online-cached: cache dir not writable; falling through")
-                    continue
 
             # 2) Execute tier
             try:
                 logger.debug("Tier %s: dispatch with %s", tier, query_lc)
                 records, source = self._dispatch[tier](query_lc)
             except UnsupportedIdentifierForMode as e:
-                logger.debug("Skip %s: %s", tier, e)  # 👈 quietly skip this tier
+                logger.debug("Skip %s: %s", tier, e)
                 continue
             except (MoleculeNotFound, DatabaseNotFound) as e:
                 logger.info("Tier %s yielded no result: %s; falling through", tier, e)
@@ -167,29 +153,21 @@ class SearchService:
             return records, source
 
         # Nothing matched
-        raise MoleculeNotFound("AUTO mode exhausted all strategies with no result.")
+        raise MoleculeNotFound("All configured sources exhausted with no result.")
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
     def _ensure_required_files(self) -> None:
-        """Verify that mandatory database files exist for the selected mode."""
-        mode = self.cfg.mode
-        # offline-basic needs the master DB
-        if mode == "offline-basic" and not os.path.isfile(self.master_db):
-            raise DatabaseNotFound(
-                f"Master DB not found at {self.master_db!r} (required for offline-basic)."
-            )
-
-        # offline-advanced needs the cache DB
-        if mode == "offline-advanced" and not os.path.isfile(self.cache_db):
-            raise DatabaseNotFound(
-                f"Cache DB not found at {self.cache_db!r} (required for offline-advanced)."
-            )
-
-        # online-cached: ensure cache folder exists (file itself will be created later)
-        if mode == "online-cached":
+        """Verify local artifacts exist for requested sources."""
+        src = [s.lower() for s in (self.cfg.sources or [])]
+        if "master" in src and not os.path.isfile(self.master_db):
+            raise DatabaseNotFound(f"Master DB not found at {self.master_db!r}.")
+        if "cache" in src and not os.path.isfile(self.cache_db):
+            raise DatabaseNotFound(f"Cache DB not found at {self.cache_db!r}.")
+        # If we write cache (api+cache_writes), ensure directory exists
+        if "api" in src and self.cfg.cache_writes:
             cache_dir = os.path.dirname(self.cache_db) or "."
             os.makedirs(cache_dir, exist_ok=True)
 
@@ -197,17 +175,19 @@ class SearchService:
     # Mode‑specific implementations
     # ------------------------------------------------------------------
 
-    def _search_offline_basic(
+    def _search_master(
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = normalize_query(input, 'basic')
+        if id_type == "molecularformula":
+            id_value = canonicalize_formula(str(id_value))
         record = basic_offline_search(self.master_db, id_type, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
         return record, 'master'
 
-    def _search_offline_advanced(
+    def _search_cache(
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
@@ -222,36 +202,30 @@ class SearchService:
             )
         return results, 'cache'
 
-    def _search_online_only(
+    def _search_api(
         self,
         input: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str]:
         id_type, id_value = normalize_query(input, 'advanced')
         if id_type == "molecularformula":
             id_value = canonicalize_formula(str(id_value))
+
+        # If user put "cache" before "api", we might already have it;
+        # but if they skipped "cache" we can still honor read-through when desired.
+        if self.cfg.cache_writes and _has_readable_file(self.cache_db):
+            rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
+            if rec:
+                return rec, ('cache' if from_cache else 'API')
+
         data = fetch_molecule_data(id_type, id_value)
         if not data:
             raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value!r}.")
+
+        if self.cfg.cache_writes:
+            try:
+                create_cache_db(self.cache_db)
+                stored = store_cached_data(self.cache_db, id_type, id_value, data)
+                return (stored or data), 'API'
+            except Exception:
+                logger.debug("store_cached_data failed; returning API data", exc_info=True)
         return data, 'API'
-
-
-    def _search_online_cached(
-        self,
-        input: dict[str, Any]
-    ) -> tuple[list[dict[str, Any]], str]:
-        create_cache_db(self.cache_db)
-        id_type, id_value = normalize_query(input, 'advanced')
-        if id_type == "molecularformula":
-            id_value = canonicalize_formula(str(id_value))
-        rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
-        if not rec:
-            raise MoleculeNotFound(f"No PubChem results for {id_type}={id_value}.")
-
-        # DEBUG log: record whether this hit came from cache or API
-        source = 'cache' if from_cache else 'API'
-        logger.debug(
-            "SearchService._search_online_cached: "
-            "identifier=%s, result_source=%s",
-            {id_type: id_value}, source
-        )
-        return rec, source

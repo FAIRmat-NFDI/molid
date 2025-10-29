@@ -50,21 +50,30 @@ def set_db(db_path: str) -> None:
     save_config(master_db=db_path)
     click.echo(f"Default master_db set to: {db_path}")
 
-@config.command("set-mode")
-@click.argument(
-    "mode",
-    type=click.Choice([
-        "offline-basic",
-        "offline-advanced",
-        "online-only",
-        "online-cached",
-        "auto"
-    ])
-)
-def set_mode(mode: str) -> None:
-    """Set default search mode."""
-    save_config(mode=mode)
-    click.echo(f"✔ Default mode set to: {mode}")
+@config.command("set-sources")
+@click.argument("sources", nargs=-1, required=True)
+def set_sources(sources: tuple[str, ...]) -> None:
+    """Set ordered sources to use (any of: master cache api)."""
+    normalized = [s.lower() for s in sources]
+    invalid = [s for s in normalized if s not in {"master", "cache", "api"}]
+    if invalid:
+        raise click.UsageError(f"Unknown sources: {invalid}. Use only: master cache api")
+    save_config(sources=json.dumps(normalized))
+    click.echo(f"✔ Default sources set to: {', '.join(normalized)}")
+
+@config.command("set-network")
+@click.argument("policy", type=click.Choice(["allow","forbid"]))
+def set_network(policy: str) -> None:
+    """Allow or forbid network (API) usage."""
+    save_config(network=policy)
+    click.echo(f"✔ Network policy set to: {policy}")
+
+@config.command("set-cache-writes")
+@click.argument("enabled", type=bool)
+def set_cache_writes(enabled: bool) -> None:
+    """Enable/disable write-through caching on API hits."""
+    save_config(cache_writes=enabled)
+    click.echo(f"✔ Cache writes on API set to: {enabled}")
 
 @config.command("show")
 def show_cfg() -> None:
@@ -191,9 +200,11 @@ def db_enrich_cas(db_path: str | None, from_cid: int | None, limit: int | None, 
 def do_search(identifier: str, id_type: str) -> None:
     """Search for a molecule by identifier."""
     cfg = load_config()
-    if cfg.mode == "offline-basic" and not cfg.master_db:
+    # Quick preflight for local sources
+    sources = [s.strip().lower() for s in (str(cfg.sources).split(",") if isinstance(cfg.sources, str) else cfg.sources)]
+    if "master" in sources and not cfg.master_db:
         raise click.UsageError("No default master DB; use `molid config set-master` first.")
-    if cfg.mode == "offline-advanced" and not cfg.cache_db:
+    if "cache"  in sources and not cfg.cache_db:
         raise click.UsageError("No default cache DB; use `molid config set-cache` first.")
     # If the user passed a readable file path, treat it as file input.
     # This ensures .xyz/.extxyz/.sdf go through the pipeline (and optional OpenBabel path).
@@ -208,7 +219,11 @@ def do_search(identifier: str, id_type: str) -> None:
         svc = SearchService(
             master_db=cfg.master_db,
             cache_db=cfg.cache_db,
-            cfg=SearchConfig(mode=cfg.mode),
+            cfg=SearchConfig(
+                sources=sources,
+                network=(cfg.network or "allow"),
+                cache_writes=bool(cfg.cache_writes),
+            ),
         )
         try:
             results, source = svc.search({id_type: identifier})

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
+from typing import Literal, Optional
 
 # Persisted env-file in the user's home directory
 ENV_FILE = Path.home() / ".molid.env"
@@ -23,19 +23,17 @@ class AppConfig(BaseSettings):
         str(Path(user_data_dir("molid")) / "cache" / "pubchem_cache.db"),
         description="Path to the PubChem cache database"
         )
-    mode: Literal[
-        "offline-basic",
-        "offline-advanced",
-        "online-only",
-        "online-cached",
-        "auto"
-        ] = Field(
-            "online-cached",
-            description="Search mode"
-            )
-    auto_priority: list[str] = Field(
-        default_factory=lambda: ["offline-basic", "online-cached", "online-only"],
-        description="Fallback order when mode=='auto'"
+    sources: list[str] = Field(
+        default_factory=lambda: ["cache", "api"],
+        description='Ordered backends to query: any of "master", "cache", "api".'
+    )
+    network: Literal["allow", "forbid"] = Field(
+        "allow",
+        description="Whether network (API) access is permitted."
+    )
+    cache_writes: bool = Field(
+        True,
+        description="If API is used, persist results into cache."
     )
     download_folder: str = Field(
         str(Path(user_cache_dir("molid")) / "downloads"),
@@ -75,7 +73,7 @@ def load_config() -> AppConfig:
 def save_config(**kwargs) -> None:
     """
     Persist the given settings into ~/.molid.env so that Pydantic will load them next time.
-    Usage: save_config(master_db="/path/to/db", mode="offline-basic")
+    Usage: save_config(master_db="/path/to/db", sources="cache,api")
     """
     lines: dict[str, str] = {}
     if ENV_FILE.exists():

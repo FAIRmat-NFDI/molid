@@ -7,11 +7,22 @@ It is designed to provide robust compound lookup, CAS mapping, and caching for w
 
 ## Key Features
 
-### Multi-Mode Search
-- **AUTO mode:** dynamically selects between offline, cached, and online search for best performance and completeness.
-- **Offline search:** query pre-built SQLite databases (full or partial PubChem subsets).
-- **Online search:** fetch from PubChem REST API.
-- **Cached search:** automatically stores previous results in a local cache database.
+### Flexible Search Sources
+MolID now uses an ordered list of **sources** instead of legacy "modes".
+You can flexibly mix offline databases, cache, and API access using configuration options.
+
+| Source | Description |
+|---------|-------------|
+| `master` | The read-only, static master PubChem database (for NOMAD or labeling). |
+| `cache`  | User’s local cache database with previously queried compounds. |
+| `api`    | Live PubChem REST API queries (optionally writing to cache). |
+
+This replaces the old AUTO / offline-basic / online-cached modes. You can combine sources, e.g.:
+- `["master"]` – strictly offline using master DB only.
+- `["cache"]` – strictly offline using the local cache DB.
+- `["cache", "api"]` – default hybrid mode (use cache, fall back to PubChem).
+- `["master", "cache", "api"]` – prefer offline data, then API as fallback.
+
 
 ### Supported Identifiers
 - CID, CAS, InChI, InChIKey, SMILES, MolecularFormula, and Name.
@@ -87,7 +98,9 @@ All variables are prefixed `MOLID_`.
 |-----------|----------|-------------|
 | `MOLID_MASTER_DB` | `pubchem_data_FULL.db` | Path to offline master database |
 | `MOLID_CACHE_DB` | `pubchem_cache.db` | Path to API cache database |
-| `MOLID_MODE` | `AUTO` | Search mode (`offline-basic`, `offline-advanced`, `online-only`, `online-cached`, `AUTO`) |
+| `MOLID_SOURCES` | `cache,api` | Ordered list of data sources (`master`, `cache`, `api`) |
+| `MOLID_NETWORK` | `allow` | Whether API/network access is allowed |
+| `MOLID_CACHE_WRITES` | `True` | Whether API results are written into the cache database |
 | `MOLID_DOWNLOAD_FOLDER` | `~/.cache/molid/downloads` | Folder for PubChem `.sdf.gz` archives |
 | `MOLID_PROCESSED_FOLDER` | `~/.local/share/molid/processed` | Folder for unpacked `.sdf` files |
 | `MOLID_LOG_FILE` | `~/.local/share/molid/molid.log` | Default log file |
@@ -100,7 +113,9 @@ All variables are prefixed `MOLID_`.
 ```bash
 molid config set-master /data/molid/pubchem_master.db
 molid config set-cache ~/.cache/molid/pubchem_cache.db
-molid config set-mode AUTO
+molid config set-sources cache api
+molid config set-network allow
+molid config set-cache-writes true
 molid config show
 ```
 

@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import ftplib
-from datetime import datetime, date
+from datetime import datetime, UTC, date
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
@@ -181,7 +181,7 @@ def _record_success(
         status="ingested",
         source=source,
         md5=new_md5,
-        last_ingested=datetime.utcnow().isoformat(timespec="seconds"),
+        last_ingested = datetime.now(UTC).isoformat(timespec="seconds"),
         last_error=None,
     )
     # best-effort cleanup

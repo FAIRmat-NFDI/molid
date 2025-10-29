@@ -22,12 +22,14 @@ def _create_search_service() -> SearchService:
     Instantiate a SearchService from Pydantic settings (env/defaults).
     """
     cfg: AppConfig = load_config()
-    master_db     = cfg.master_db
-    cache_db      = cfg.cache_db
-    mode          = cfg.mode
+    master_db = cfg.master_db
+    cache_db  = cfg.cache_db
+    sources   = cfg.sources
+    network   = cfg.network
+    cache_w   = cfg.cache_writes
 
-    _sanity_check(master_db, cache_db, mode)
-    search_cfg = SearchConfig(mode=mode)
+    _sanity_check(master_db, cache_db, sources)
+    search_cfg = SearchConfig(sources=sources, network=network, cache_writes=cache_w)
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
 
 
@@ -124,16 +126,12 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
 
     raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
 
-def _sanity_check(
-    master_db: str,
-    cache_db: str,
-    mode: str
-) -> None:
-    allowed = {"offline-basic", "offline-advanced", "online-only", "online-cached", "auto"}
-    if mode not in allowed:
-        raise ValueError(f'{mode} is no valid search mode. Select one of {", ".join(sorted(allowed))}')
-    # keep the existing file-present checks ONLY for explicit offline modes
-    if mode == "offline-basic" and not Path(master_db).exists():
-        raise FileNotFoundError(f"File not found: {master_db}. Master DB needed for {mode}")
-    if mode == "offline-advanced" and not Path(cache_db).exists():
-        raise FileNotFoundError(f"File not found: {cache_db}. Cache DB needed for {mode}")
+def _sanity_check(master_db: str, cache_db: str, sources: list[str]) -> None:
+    s = [x.lower() for x in (sources or [])]
+    unknown = [x for x in s if x not in {"master","cache","api"}]
+    if unknown:
+        raise ValueError(f"Unknown sources: {unknown!r}. Use only 'master','cache','api'.")
+    if "master" in s and not Path(master_db).exists():
+        raise FileNotFoundError(f"File not found: {master_db}. Master DB required when using 'master' source.")
+    if "cache" in s and not Path(cache_db).exists():
+        raise FileNotFoundError(f"File not found: {cache_db}. Cache DB required when using 'cache' source.")

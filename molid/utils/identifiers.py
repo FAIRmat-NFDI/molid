@@ -10,7 +10,7 @@ class UnsupportedIdentifierForMode(Exception):
     """Raised when a given identifier is not supported by the chosen search mode."""
     pass
 
-_BASIC_ALLOWED   = ("cid", "title", "iupacname", "molecularformula", "inchi", "inchikey","smiles", "canonicalsmiles", "cas")
+_BASIC_ALLOWED   = ("cid", "title", "iupacname", "molecularformula", "inchi", "inchikey","smiles", "canonicalsmiles", "isomericsmiles", "cas")
 _ADV_ALLOWED     = _BASIC_ALLOWED + ("isomericsmiles",)
 
 
@@ -31,7 +31,7 @@ def normalize_query(
     if k == "smiles":
         return "canonicalsmiles", v
     if k == "isomericsmiles":
-        # master DB doesn't have IsomericSMILES; map to CanonicalSMILES for offline-basic
+        # master DB doesn't have IsomericSMILES; map to CanonicalSMILES for basic
         return ("canonicalsmiles" if mode == "basic" else "isomericsmiles"), v
 
     if k in ("formula", "molecularformula"):
