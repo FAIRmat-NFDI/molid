@@ -13,7 +13,9 @@ def _seed_compounds(db_path):
     ])
 
 def test_enrich_generic_downgrade_and_best_cas(tmp_path, monkeypatch):
-    db = str(tmp_path / "master.db"); create_offline_db(db); _seed_compounds(db)
+    db = str(tmp_path / "master.db")
+    create_offline_db(db)
+    _seed_compounds(db)
 
     # Monkeypatch the batch fetcher to return:
     #  - RN "999-99-9" for both CIDs 1 & 2 (generic due to multi-chemistry + keywords)

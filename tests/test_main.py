@@ -48,7 +48,8 @@ def sandbox_env(monkeypatch, tmp_path_factory):
     )
     # Force the pipeline to construct the service from ENV only (ignore any file config)
     def _factory():
-        import os, json
+        import os
+        import json
         master = os.environ.get("MOLID_MASTER_DB", "")
         cachep = os.environ.get("MOLID_CACHE_DB", "")
         sources = json.loads(os.environ.get("MOLID_SOURCES", "[]"))
