@@ -77,12 +77,15 @@ class SearchService:
         self.cache_db = cache_db
         self.cfg = cfg
 
-        # Fail fast if requested sources require local files.
-        self._ensure_required_files()
 
         # If write-through caching is enabled and api may be used, ensure cache schema exists.
-        if "api" in (self.cfg.sources or []) and self.cfg.cache_writes:
+        src = [s.lower() for s in (self.cfg.sources or [])]
+        need_cache = ("cache" in src) or ("api" in src and bool(self.cfg.cache_writes))
+        if need_cache:
             create_cache_db(self.cache_db)
+
+        # Fail fast if requested sources require local files.
+        self._ensure_required_files()
 
         self._dispatch: dict[str, Callable[[dict[str, Any]], tuple[list[dict[str, Any]], str]]] = {
             "master": self._search_master,

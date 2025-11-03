@@ -52,6 +52,8 @@ def ns_for_id_type(id_type: str) -> str:
         "inchikey": "inchikey",
         "inchi": "inchi",
         "smiles": "smiles",
+        "canonicalsmiles": "smiles",
+        "isomericsmiles": "smiles",
         "name": "name",
         "molecularformula": "formula",
         "cas": "xref/rn",
@@ -64,51 +66,92 @@ def resolve_to_cids(id_type: str, id_value: str) -> list[int]:
     """
     Resolve an identifier to PubChem CIDs.
 
-    Supports inchikey, inchi, smiles, cid, name (as before) and now also
-    molecularformula/formula via the PubChem fastformula endpoint.
-
-    404 responses are treated as "no hits" so callers can fall through to
-    the next strategy.
+    Adds a robust fallback path for InChI:
+      - try GET with full value
+      - try GET without 'InChI=' prefix
+      - try POST form 'inchi=<string>'
     """
     key = (id_type or "").strip().lower()
-    safe_value = quote(str(id_value).strip(), safe="")
-
-    # Select namespace: use fastformula for molecular formulas
-    if key in ("molecularformula", "formula"):
-        ns = "fastformula"
-    else:
-        # falls back to your existing namespace resolver
-        ns = ns_for_id_type(key)
-
-    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{ns}/{safe_value}/cids/JSON"
-
     s = get_session()
-    try:
+
+    # Fast path for molecular formula (unchanged)
+    if key in ("molecularformula", "formula"):
+        safe_value = quote(str(id_value).strip(), safe="")
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastformula/{safe_value}/cids/JSON"
         r = s.get(url, timeout=_TIMEOUT)
         if r.status_code == 404:
-            # Soft miss: behave like no results so higher layers can try next tier
             return []
         r.raise_for_status()
         obj = r.json()
-    except requests.HTTPError as e:
-        # Treat 404 as "no hits"; re-raise anything else
-        if getattr(e.response, "status_code", None) == 404:
+        cids = (
+            obj.get("IdentifierList", {}).get("CID")
+            or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
+        )
+        if not cids:
             return []
-        raise
+        return [int(c) for c in (cids if isinstance(cids, list) else [cids])]
 
-    # PubChem returns either IdentifierList.CID or InformationList.Information[0].CID
-    cids = (
-        obj.get("IdentifierList", {}).get("CID")
-        or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
-    )
+    # All other ID types → existing namespace
+    ns = ns_for_id_type(key)
 
-    if not cids:
+    def _extract_cids(obj: dict) -> list[int]:
+        c = (
+            obj.get("IdentifierList", {}).get("CID")
+            or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
+        )
+        if not c:
+            return []
+        if not isinstance(c, list):
+            c = [c]
+        return [int(v) for v in c]
+
+    val = str(id_value).strip()
+
+    # InChI: be extra robust
+    if key == "inchi":
+        # 1) GET with full value
+        for candidate in (val, val[6:] if val.startswith("InChI=") else None):
+            if not candidate:
+                continue
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/{quote(candidate, safe='')}/cids/JSON"
+            r = s.get(url, timeout=_TIMEOUT)
+            if r.status_code == 404:
+                # try next variant
+                continue
+            if r.status_code == 400:
+                # try next variant
+                continue
+            r.raise_for_status()
+            cids = _extract_cids(r.json())
+            if cids:
+                return cids
+
+        # 2) POST body form (most reliable)
+        #    Accept both raw and prefix-stripped variants
+        for candidate in (val, val[6:] if val.startswith("InChI=") else None):
+            if not candidate:
+                continue
+            url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/cids/JSON"
+            r = s.post(url, data={"inchi": candidate}, timeout=_TIMEOUT)
+            if r.status_code == 404:
+                continue
+            if r.status_code == 400:
+                continue
+            r.raise_for_status()
+            cids = _extract_cids(r.json())
+            if cids:
+                return cids
+
+        return []  # nothing worked; let upper layers fall through
+
+    # Default path (inchikey, smiles, name, cas, cid…)
+    safe_value = quote(val, safe="")
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{ns}/{safe_value}/cids/JSON"
+    r = s.get(url, timeout=_TIMEOUT)
+    if r.status_code == 404:
         return []
-
-    # Normalize to list[int]
-    if not isinstance(cids, list):
-        cids = [cids]
-    return [int(c) for c in cids]
+    r.raise_for_status()
+    return _extract_cids(r.json())
 
 
 def get_properties(cid: int, properties: tuple[str, ...]) -> list[dict[str, Any]]:

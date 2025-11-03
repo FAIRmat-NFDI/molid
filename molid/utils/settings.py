@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from appdirs import user_cache_dir, user_data_dir
 from pathlib import Path
 
@@ -8,7 +9,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
 
 # Persisted env-file in the user's home directory
-ENV_FILE = Path.home() / ".molid.env"
+# Allow tests or callers to specify a custom env file location
+ENV_FILE = Path(os.getenv("MOLID_ENV_FILE", str(Path.home() / ".molid.env")))
 
 class AppConfig(BaseSettings):
     """
