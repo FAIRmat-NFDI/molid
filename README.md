@@ -99,7 +99,6 @@ All variables are prefixed `MOLID_`.
 | `MOLID_MASTER_DB` | `pubchem_data_FULL.db` | Path to offline master database |
 | `MOLID_CACHE_DB` | `pubchem_cache.db` | Path to API cache database |
 | `MOLID_SOURCES` | `cache,api` | Ordered list of data sources (`master`, `cache`, `api`) |
-| `MOLID_NETWORK` | `allow` | Whether API/network access is allowed |
 | `MOLID_CACHE_WRITES` | `True` | Whether API results are written into the cache database |
 | `MOLID_DOWNLOAD_FOLDER` | `~/.cache/molid/downloads` | Folder for PubChem `.sdf.gz` archives |
 | `MOLID_PROCESSED_FOLDER` | `~/.local/share/molid/processed` | Folder for unpacked `.sdf` files |
@@ -114,7 +113,6 @@ All variables are prefixed `MOLID_`.
 molid config set-master /data/molid/pubchem_master.db
 molid config set-cache ~/.cache/molid/pubchem_cache.db
 molid config set-sources cache api
-molid config set-network allow
 molid config set-cache-writes true
 molid config show
 ```

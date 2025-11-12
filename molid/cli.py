@@ -61,13 +61,6 @@ def set_sources(sources: tuple[str, ...]) -> None:
     save_config(sources=json.dumps(normalized))
     click.echo(f"✔ Default sources set to: {', '.join(normalized)}")
 
-@config.command("set-network")
-@click.argument("policy", type=click.Choice(["allow","forbid"]))
-def set_network(policy: str) -> None:
-    """Allow or forbid network (API) usage."""
-    save_config(network=policy)
-    click.echo(f"✔ Network policy set to: {policy}")
-
 @config.command("set-cache-writes")
 @click.argument("enabled", type=bool)
 def set_cache_writes(enabled: bool) -> None:
@@ -221,7 +214,6 @@ def do_search(identifier: str, id_type: str) -> None:
             cache_db=cfg.cache_db,
             cfg=SearchConfig(
                 sources=sources,
-                network=(cfg.network or "allow"),
                 cache_writes=bool(cfg.cache_writes),
             ),
         )

@@ -29,10 +29,6 @@ class AppConfig(BaseSettings):
         default_factory=lambda: ["cache", "api"],
         description='Ordered backends to query: any of "master", "cache", "api".'
     )
-    network: Literal["allow", "forbid"] = Field(
-        "allow",
-        description="Whether network (API) access is permitted."
-    )
     cache_writes: bool = Field(
         True,
         description="If API is used, persist results into cache."

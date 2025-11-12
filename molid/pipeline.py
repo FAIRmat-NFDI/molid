@@ -25,11 +25,10 @@ def _create_search_service() -> SearchService:
     master_db = cfg.master_db
     cache_db  = cfg.cache_db
     sources   = cfg.sources
-    network   = cfg.network
     cache_w   = cfg.cache_writes
 
     _sanity_check(master_db, cache_db, sources)
-    search_cfg = SearchConfig(sources=sources, network=network, cache_writes=cache_w)
+    search_cfg = SearchConfig(sources=sources, cache_writes=cache_w)
     return SearchService(master_db=master_db, cache_db=cache_db, cfg=search_cfg)
 
 

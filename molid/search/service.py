@@ -52,7 +52,6 @@ class DatabaseNotFound(Exception):
 class SearchConfig:
     """Runtime configuration for SearchService (ordered backends)."""
     sources: list[str]
-    network: str = "allow"       # "allow" | "forbid"
     cache_writes: bool = True
 
 
@@ -121,9 +120,6 @@ class SearchService:
                 logger.debug("Skip cache: cache DB missing/unreadable")
                 continue
             if tier == "api":
-                if self.cfg.network != "allow":
-                    logger.debug("Skip api: network forbidden")
-                    continue
                 if self.cfg.cache_writes and not _is_writable_dir(self.cache_db):
                     logger.debug("api cache writes disabled (cache dir not writable); proceeding without writes")
 
