@@ -6,9 +6,7 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
 
-# Persisted env-file in the user's home directory
 # Allow tests or callers to specify a custom env file location
 ENV_FILE = Path(os.getenv("MOLID_ENV_FILE", str(Path.home() / ".molid.env")))
 
