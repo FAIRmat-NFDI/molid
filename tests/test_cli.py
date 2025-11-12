@@ -56,7 +56,6 @@ def test_search_master_smiles_found(tmp_path, runner):
     env = {
         "MOLID_MASTER_DB": str(db_file),
         "MOLID_SOURCES": json.dumps(["master"]),
-        "MOLID_NETWORK": "forbid",
         "MOLID_CACHE_WRITES": "false",
     }
     result = runner.invoke(cli, ["search", "C", "--id-type", "smiles"], env=env)
@@ -69,7 +68,6 @@ def test_search_master_not_found(tmp_path, runner):
     env = {
         "MOLID_MASTER_DB": str(db_file),
         "MOLID_SOURCES": json.dumps(["master"]),
-        "MOLID_NETWORK": "forbid",
         "MOLID_CACHE_WRITES": "false",
     }
     result = runner.invoke(cli, ["search", "UNKNOWN", "--id-type", "smiles"], env=env)
@@ -89,16 +87,14 @@ def test_config_set_and_show(monkeypatch, tmp_path):
     # set-sources
     out3 = r.invoke(cli, ["config","set-sources","cache","api"])
     assert out3.exit_code == 0
-    # set-network
-    out4 = r.invoke(cli, ["config","set-network","allow"])
-    assert out4.exit_code == 0
+
     # set-cache-writes
-    out5 = r.invoke(cli, ["config","set-cache-writes","true"])
-    assert out5.exit_code == 0
+    out4 = r.invoke(cli, ["config","set-cache-writes","true"])
+    assert out4.exit_code == 0
 
     # show
-    out6 = r.invoke(cli, ["config","show"])
-    assert out6.exit_code == 0
-    s = out6.output
+    out5 = r.invoke(cli, ["config","show"])
+    assert out5.exit_code == 0
+    s = out5.output
     assert '"master_db"' in s and '"cache_db"' in s
-    assert '"sources"' in s and '"network"' in s and '"cache_writes"' in s
+    assert '"sources"' in s and '"cache_writes"' in s

@@ -10,8 +10,8 @@ tmp_master.touch()
 tmp_cache  = Path("/tmp/cache.db")
 tmp_cache.touch()
 
-def make_service(sources, network="allow", cache_writes=True):
-    cfg = SearchConfig(sources=sources, network=network, cache_writes=cache_writes)
+def make_service(sources, cache_writes=True):
+    cfg = SearchConfig(sources=sources, cache_writes=cache_writes)
     return SearchService(master_db=str(tmp_master), cache_db=str(tmp_cache), cfg=cfg)
 
 def test_order_and_skip(monkeypatch):
@@ -40,11 +40,6 @@ def test_order_and_skip(monkeypatch):
     assert order == ["cache", "master"]
     assert src == "master"
     assert recs and recs[0]["CID"] == 10
-
-def test_network_forbid_skips_api():
-    svc = make_service(["api"], network="forbid")
-    with pytest.raises(svc_mod.MoleculeNotFound):
-        svc.search({"inchikey": "Y"*27})
 
 def test_no_sources_configured_raises(monkeypatch, tmp_path):
     svc = SearchService(master_db=str(tmp_path/"m.db"), cache_db=str(tmp_path/"c.db"),

@@ -37,7 +37,6 @@ def sandbox_env(monkeypatch, tmp_path_factory):
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
     monkeypatch.setenv("MOLID_CACHE_DB",  str(cache))
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["cache","api"]))
-    monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "true")
     create_cache_db(str(cache))
     insert_dict_records(
@@ -53,9 +52,8 @@ def sandbox_env(monkeypatch, tmp_path_factory):
         master = os.environ.get("MOLID_MASTER_DB", "")
         cachep = os.environ.get("MOLID_CACHE_DB", "")
         sources = json.loads(os.environ.get("MOLID_SOURCES", "[]"))
-        net = os.environ.get("MOLID_NETWORK", "allow")
         cw = os.environ.get("MOLID_CACHE_WRITES", "true").lower() == "true"
-        return SearchService(master, cachep, SearchConfig(sources=sources, network=net, cache_writes=cw))
+        return SearchService(master, cachep, SearchConfig(sources=sources, cache_writes=cw))
     monkeypatch.setattr(pipeline, "_create_search_service", _factory, raising=True)
 
 
