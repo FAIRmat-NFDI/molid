@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import os
 import re
-import time
 import sqlite3
-from typing import Iterable, Dict, List, Set, Tuple
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Iterable, List, Set, Tuple
 from urllib.parse import quote
 
 import requests

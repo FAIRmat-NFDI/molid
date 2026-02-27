@@ -1,12 +1,14 @@
-import pytest
-import json
 import importlib.util
+import json
+
+import pytest
 from ase.build import molecule
-from molid.main import run
-from molid.db.db_utils import create_cache_db, insert_dict_records
-from molid.utils import settings as _settings
+
 from molid import pipeline
-from molid.search.service import SearchService, SearchConfig
+from molid.db.db_utils import create_cache_db, insert_dict_records
+from molid.main import run
+from molid.search.service import SearchConfig, SearchService
+from molid.utils import settings as _settings
 
 CO2_ADVANCED = {
     "CID": 280,
@@ -48,8 +50,8 @@ def sandbox_env(monkeypatch, tmp_path_factory):
 
     # Force the pipeline to construct the service from ENV only (ignore any file config)
     def _factory():
-        import os
         import json
+        import os
 
         master = os.environ.get("MOLID_MASTER_DB", "")
         cachep = os.environ.get("MOLID_CACHE_DB", "")

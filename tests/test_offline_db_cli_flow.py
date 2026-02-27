@@ -1,8 +1,8 @@
 from pathlib import Path
 
+from molid.db import offline_db_cli as odc
 from molid.db.db_utils import create_offline_db
 from molid.db.sqlite_manager import DatabaseManager
-from molid.db import offline_db_cli as odc
 
 
 def test_update_database_happy_path(monkeypatch, tmp_path):

@@ -1,4 +1,5 @@
 import sqlite3
+
 from molid.db import db_utils
 from molid.db.sqlite_manager import DatabaseManager
 

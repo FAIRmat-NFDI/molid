@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import os
-import click
 import json
 import logging
-from logging import StreamHandler, FileHandler, Formatter
+import os
+from logging import FileHandler, Formatter, StreamHandler
 
-from molid.db.offline_db_cli import update_database, use_database, enrich_cas_database
+import click
+
 from molid.db.db_utils import create_offline_db
-from molid.search.service import SearchService, SearchConfig
+from molid.db.offline_db_cli import enrich_cas_database, update_database, use_database
 from molid.pipeline import search_from_file
+from molid.search.service import SearchConfig, SearchService
 from molid.utils.settings import load_config, save_config
 
 

@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from molid.pubchemproc.file_handler import (
-    validate_gz_file,
-    unpack_gz_file,
-    cleanup_files,
-    GzipValidationError,
-    FileUnpackError,
-)
 from molid.db.schema import DEFAULT_PROPERTIES_MASTER
+from molid.pubchemproc.file_handler import (
+    FileUnpackError,
+    GzipValidationError,
+    cleanup_files,
+    unpack_gz_file,
+    validate_gz_file,
+)
 
 logger = logging.getLogger(__name__)
 

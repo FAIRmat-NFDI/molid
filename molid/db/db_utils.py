@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from molid.db.schema import CACHE_SCHEMA, OFFLINE_SCHEMA
 from molid.db.sqlite_manager import DatabaseManager
-from molid.db.schema import OFFLINE_SCHEMA, CACHE_SCHEMA
 
 logger = logging.getLogger(__name__)
 

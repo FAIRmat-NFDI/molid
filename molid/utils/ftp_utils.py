@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import ftplib
-import time
 import logging
-import socket
 import re
+import socket
+import time
 from datetime import date
 from pathlib import Path
 
 from molid.pubchemproc.file_handler import (
-    validate_gz_file,
     GzipValidationError,
+    validate_gz_file,
 )
 
 logger = logging.getLogger(__name__)

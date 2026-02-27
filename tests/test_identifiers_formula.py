@@ -1,6 +1,7 @@
 import pytest
-from molid.utils.identifiers import normalize_query, UnsupportedIdentifierForMode
+
 from molid.utils.formula import canonicalize_formula
+from molid.utils.identifiers import UnsupportedIdentifierForMode, normalize_query
 
 
 def test_normalize_smiles_basic_maps_to_canonical():

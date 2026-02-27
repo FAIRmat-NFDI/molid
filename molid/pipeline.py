@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import io
-import os
 import logging
-
+import os
 from pathlib import Path
 from typing import Any
 
 from ase import Atoms
 from ase.io import read
 
-from molid.utils.conversion import atoms_to_inchikey
-from molid.search.service import SearchService, SearchConfig
 from molid.pubchemproc.pubchem import process_file
-from molid.utils.settings import load_config, AppConfig
+from molid.search.service import SearchConfig, SearchService
+from molid.utils.conversion import atoms_to_inchikey
+from molid.utils.settings import AppConfig, load_config
 
 logger = logging.getLogger(__name__)
 

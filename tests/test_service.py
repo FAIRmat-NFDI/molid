@@ -1,8 +1,9 @@
+from pathlib import Path
+
 import pytest
 
-from molid.search.service import SearchService, SearchConfig
 import molid.search.service as svc_mod
-from pathlib import Path
+from molid.search.service import SearchConfig, SearchService
 
 # Create empty, readable files so the service doesn't skip for missing files
 tmp_master = Path("/tmp/master.db")

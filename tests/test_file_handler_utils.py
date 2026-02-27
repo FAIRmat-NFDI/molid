@@ -1,11 +1,13 @@
-import pytest
 import gzip
+
+import pytest
+
 from molid.pubchemproc.file_handler import (
-    validate_gz_file,
     GzipValidationError,
-    unpack_gz_file,
     compute_md5,
     read_expected_md5,
+    unpack_gz_file,
+    validate_gz_file,
     verify_md5,
 )
 

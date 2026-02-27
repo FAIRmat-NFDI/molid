@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import gzip
-import shutil
 import hashlib
 import logging
+import shutil
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

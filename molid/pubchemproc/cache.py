@@ -3,16 +3,16 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from molid.search.db_lookup import advanced_search
-from molid.db.db_utils import insert_dict_records
-from molid.db.sqlite_manager import DatabaseManager
-from molid.db.schema import NUMERIC_FIELDS, CACHE_COLUMNS, DEFAULT_PROPERTIES_CACHE
-from molid.pubchemproc.pubchem_client import resolve_to_cids, get_properties
-from molid.utils.formula import canonicalize_formula
-from molid.pubchemproc.fetch import _normalize_keys
-from molid.utils.conversion import coerce_numeric_fields
-from molid.utils.settings import load_config
 from molid.db.cas_enrich import _downgrade_generic_cas
+from molid.db.db_utils import insert_dict_records
+from molid.db.schema import CACHE_COLUMNS, DEFAULT_PROPERTIES_CACHE, NUMERIC_FIELDS
+from molid.db.sqlite_manager import DatabaseManager
+from molid.pubchemproc.fetch import _normalize_keys
+from molid.pubchemproc.pubchem_client import get_properties, resolve_to_cids
+from molid.search.db_lookup import advanced_search
+from molid.utils.conversion import coerce_numeric_fields
+from molid.utils.formula import canonicalize_formula
+from molid.utils.settings import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -170,8 +170,8 @@ def get_cached_or_fetch(
 
     # NEW: inline CAS mapping enrichment for the just-fetched CID(s)
     try:
-        from molid.pubchemproc.pubchem_client import get_synonyms, get_xrefs_rn
         from molid.db.cas_enrich import cache_enrich_single_cid
+        from molid.pubchemproc.pubchem_client import get_synonyms, get_xrefs_rn
 
         # 'stored' comes from advanced_search; every row should carry a CID
         for row in stored or []:

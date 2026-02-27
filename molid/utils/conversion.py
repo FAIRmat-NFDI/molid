@@ -5,9 +5,9 @@ import io
 from io import StringIO
 from typing import Any
 
+from ase import Atoms
 from ase.data import atomic_masses
 from ase.io import write
-from ase import Atoms
 
 # threshold for detecting isotopic masses (amu)
 MASS_TOLERANCE = 0.1

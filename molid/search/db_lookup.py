@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
 import warnings
-
 from typing import Any
-from molid.db.sqlite_manager import DatabaseManager
+
 from molid.db.schema import CACHE_COLUMNS
+from molid.db.sqlite_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

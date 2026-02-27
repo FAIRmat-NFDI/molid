@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-
-from collections.abc import Callable
 from typing import Any
 
-from molid.search.db_lookup import basic_offline_search, advanced_search
-from molid.pubchemproc.cache import get_cached_or_fetch, store_cached_data
 from molid.db.db_utils import create_cache_db
+from molid.pubchemproc.cache import get_cached_or_fetch, store_cached_data
 from molid.pubchemproc.fetch import fetch_molecule_data
-from molid.utils.identifiers import normalize_query, UnsupportedIdentifierForMode
+from molid.search.db_lookup import advanced_search, basic_offline_search
 from molid.utils.formula import canonicalize_formula
+from molid.utils.identifiers import UnsupportedIdentifierForMode, normalize_query
 
 logger = logging.getLogger(__name__)
 

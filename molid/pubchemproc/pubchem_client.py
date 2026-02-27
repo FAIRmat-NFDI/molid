@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import os
-import requests
 from typing import Any
 from urllib.parse import quote
 
+import requests
 from requests.adapters import HTTPAdapter, Retry
+
 from molid.db.schema import NUMERIC_FIELDS
 from molid.utils.conversion import coerce_numeric_fields
 

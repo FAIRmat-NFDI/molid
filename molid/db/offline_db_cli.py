@@ -1,30 +1,30 @@
+import ftplib
+import logging
 import os
 import sys
-import logging
-import ftplib
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional, Tuple
 
 import click
 
+from molid.db.cas_enrich import enrich_cas_for_cids
 from molid.db.db_utils import (
     create_offline_db,
-    save_to_database,
     get_archive_state,
+    save_to_database,
     upsert_archive_state,
 )
 from molid.db.schema import NUMERIC_FIELDS
+from molid.pubchemproc.file_handler import read_expected_md5, verify_md5
 from molid.pubchemproc.pubchem import unpack_and_process_file
-from molid.utils.disk_utils import check_disk_space
 from molid.utils.conversion import coerce_numeric_fields
+from molid.utils.disk_utils import check_disk_space
 from molid.utils.ftp_utils import (
     FTP_SERVER,
-    get_changed_sdf_files,
     download_file_with_resume,
+    get_changed_sdf_files,
 )
-from molid.pubchemproc.file_handler import verify_md5, read_expected_md5
-from molid.db.cas_enrich import enrich_cas_for_cids
 
 logger = logging.getLogger(__name__)
 

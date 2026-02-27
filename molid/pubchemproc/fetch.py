@@ -1,15 +1,17 @@
 # molid/pubchemproc/fetch.py
 from __future__ import annotations
-import requests
+
 from typing import Any
+
+import requests
 
 from molid.db.schema import DEFAULT_PROPERTIES_CACHE
 from molid.pubchemproc.pubchem_client import (
-    resolve_to_cids,
     get_properties,
     get_pugview,
-    get_xrefs_rn,
     get_synonyms,
+    get_xrefs_rn,
+    resolve_to_cids,
 )
 
 
