@@ -29,17 +29,21 @@ dependencies = [
   "click >= 8.0",
   "ase >= 1.1.7",
   "appdirs >= 1.4",
-  "psutil == 6.1.1",
+  "psutil >= 5.0.0",
   "pydantic >= 2.0",
-  "pydantic-settings>=2.0",
-  "requests>=2.20.0",
+  "pydantic-settings >= 2.0",
+  "requests >= 2.20.0",
   "tqdm",
-  "psutil",
 ]
 
 [project.optional-dependencies]
-tests = ["pytest"]
-openbabel = ["openbabel-wheel"]
+openbabel = ["openbabel-wheel"]  # For XYZ → InChIKey conversion
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "ruff"
+]
 
 [project.scripts]
 molid = "molid.cli:cli"
