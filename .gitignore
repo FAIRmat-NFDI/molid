@@ -84,7 +84,6 @@ dmypy.json
 # Protect any stray SSH keys
 *.pem
 
-tests/data/test_cache.db
 id_*
 *.key
 
