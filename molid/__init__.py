@@ -1,6 +1,7 @@
-from .main import run
+from importlib.metadata import PackageNotFoundError, version
+
 from .cli import cli
-from importlib.metadata import version, PackageNotFoundError
+from .main import run
 
 __all__ = ["run", "cli"]
 

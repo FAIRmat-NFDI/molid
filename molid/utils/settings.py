@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from appdirs import user_cache_dir, user_data_dir
 from pathlib import Path
 
+from appdirs import user_cache_dir, user_data_dir
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

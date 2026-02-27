@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import sqlite3
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any, Sequence
 

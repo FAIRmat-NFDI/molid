@@ -1,7 +1,7 @@
+from molid.db import cas_enrich as ce
+from molid.db.cas_enrich import enrich_cas_for_cids
 from molid.db.db_utils import create_offline_db
 from molid.db.sqlite_manager import DatabaseManager
-from molid.db.cas_enrich import enrich_cas_for_cids
-from molid.db import cas_enrich as ce
 
 
 def _seed_compounds(db_path):

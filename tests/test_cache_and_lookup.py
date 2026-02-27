@@ -1,8 +1,8 @@
-from molid.pubchemproc.cache import get_cached_or_fetch
+import molid.pubchemproc.pubchem_client as pc
 from molid.db.db_utils import create_cache_db, create_offline_db
 from molid.db.sqlite_manager import DatabaseManager
-import molid.pubchemproc.pubchem_client as pc
-from molid.search.db_lookup import master_lookup_by_cas, advanced_search
+from molid.pubchemproc.cache import get_cached_or_fetch
+from molid.search.db_lookup import advanced_search, master_lookup_by_cas
 
 
 def test_read_then_write_through(tmp_path, monkeypatch):

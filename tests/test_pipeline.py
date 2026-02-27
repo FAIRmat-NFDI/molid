@@ -1,18 +1,18 @@
-import pytest
-import textwrap
 import importlib.util
+import textwrap
 from pathlib import Path
+
+import pytest
 from ase.build import molecule
 
-from molid.db.db_utils import create_cache_db, insert_dict_records
 from molid import pipeline
+from molid.db.db_utils import create_cache_db, insert_dict_records
 from molid.pipeline import (
-    search_identifier,
     search_from_atoms,
     search_from_file,
     search_from_input,
+    search_identifier,
 )
-
 
 ADVANCED_RESULT = {
     "CID": 280,

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Any, Literal
+
 import logging
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 

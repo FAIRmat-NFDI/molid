@@ -1,11 +1,12 @@
-import sqlite3
 import json
+import sqlite3
+
 import pytest
 from click.testing import CliRunner
 
 from molid.cli import cli
-from molid.db.sqlite_manager import DatabaseManager
 from molid.db.schema import OFFLINE_SCHEMA
+from molid.db.sqlite_manager import DatabaseManager
 
 
 @pytest.fixture
