@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.fixture(autouse=True)
 def isolated_molid_env(tmp_path, monkeypatch):
     """

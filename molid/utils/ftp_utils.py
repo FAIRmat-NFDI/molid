@@ -29,14 +29,24 @@ def validate_start_position(local_file_path: Path, ftp_size: int) -> int:
         try:
             validate_gz_file(local_file_path)
         except GzipValidationError:
-            logger.warning("Invalid partial file %s. Restarting download.", local_file_path.name)
+            logger.warning(
+                "Invalid partial file %s. Restarting download.", local_file_path.name
+            )
             local_file_path.unlink()
             return 0
         start_position = local_file_path.stat().st_size
-        logger.debug("Resuming download for %s from byte %d", local_file_path.name, start_position)
+        logger.debug(
+            "Resuming download for %s from byte %d",
+            local_file_path.name,
+            start_position,
+        )
 
     if start_position > ftp_size:
-        logger.error("Start position %d exceeds file size %d. Restarting.", start_position, ftp_size)
+        logger.error(
+            "Start position %d exceeds file size %d. Restarting.",
+            start_position,
+            ftp_size,
+        )
         local_file_path.unlink()
         return 0
 
@@ -57,7 +67,9 @@ def get_total_files_from_ftp() -> list[str]:
             return sdf_files
     except socket.gaierror as dns_err:
         logger.error("DNS resolution failed for FTP server %s: %s", FTP_SERVER, dns_err)
-        raise RuntimeError(f"DNS resolution failed for FTP server {FTP_SERVER}: {dns_err}")
+        raise RuntimeError(
+            f"DNS resolution failed for FTP server {FTP_SERVER}: {dns_err}"
+        )
     except Exception as e:
         raise RuntimeError(f"Failed to fetch file list from FTP server: {e}")
 
@@ -83,7 +95,10 @@ def attempt_download(
             )
         except ftplib.error_perm as e:
             if "REST" in str(e):
-                logger.warning("Server does not support REST. Restarting download for %s.", file_name)
+                logger.warning(
+                    "Server does not support REST. Restarting download for %s.",
+                    file_name,
+                )
                 local_file.truncate(0)
                 ftp.retrbinary(f"RETR {file_name}", local_file.write)
             else:
@@ -92,7 +107,12 @@ def attempt_download(
     if local_file_path.stat().st_size == ftp_size:
         logger.info("Successfully downloaded: %s", file_name)
         return True
-    logger.error("File size mismatch for %s (got %d vs %d).", file_name, local_file_path.stat().st_size, ftp_size)
+    logger.error(
+        "File size mismatch for %s (got %d vs %d).",
+        file_name,
+        local_file_path.stat().st_size,
+        ftp_size,
+    )
     return False
 
 
@@ -101,14 +121,20 @@ def download_via_http(remote_path: str, download_folder: str) -> Path:
     try:
         import requests
     except ImportError:
-        raise RuntimeError("requests library required for HTTP fallback but is not installed.")
+        raise RuntimeError(
+            "requests library required for HTTP fallback but is not installed."
+        )
 
     url = f"https://{FTP_SERVER}{remote_path}"
     local = Path(download_folder) / Path(remote_path).name
     headers: dict[str, str] = {}
     if local.exists():
         headers["Range"] = f"bytes={local.stat().st_size}-"
-        logger.debug("Resuming HTTP download for %s from byte %d", local.name, local.stat().st_size)
+        logger.debug(
+            "Resuming HTTP download for %s from byte %d",
+            local.name,
+            local.stat().st_size,
+        )
 
     with requests.get(url, stream=True, headers=headers, timeout=600) as r:
         r.raise_for_status()
@@ -119,6 +145,7 @@ def download_via_http(remote_path: str, download_folder: str) -> Path:
                     f.write(chunk)
     logger.info("Successfully downloaded via HTTP: %s", local.name)
     return local
+
 
 def download_file_with_resume(
     remote_path: str,
@@ -144,7 +171,7 @@ def download_file_with_resume(
                 ftp_size = ftp.size(remote_name)
                 logger.debug(
                     "Server-reported file size for %s: %d", remote_name, ftp_size
-                    )
+                )
 
                 start_position = validate_start_position(local_file_path, ftp_size)
                 if attempt_download(remote_name, local_file_path, start_position, ftp):
@@ -155,58 +182,38 @@ def download_file_with_resume(
                 "Name resolution error on attempt %d for %s: %s",
                 attempt,
                 remote_path,
-                dns_err
+                dns_err,
             )
             try:
-                logger.info(
-                    "Falling back to HTTPS due to DNS error: %s",
-                    remote_path
-                )
+                logger.info("Falling back to HTTPS due to DNS error: %s", remote_path)
                 return download_via_http(remote_path, download_folder)
             except Exception as http_e:
-                logger.error(
-                    "HTTPS fallback failed after DNS error: %s",
-                    http_e
-                )
+                logger.error("HTTPS fallback failed after DNS error: %s", http_e)
                 return None
         except Exception as e:
             logger.error(
-                "Attempt %d/%d failed for %s: %s",
-                attempt,
-                max_retries,
-                remote_path,
-                e
+                "Attempt %d/%d failed for %s: %s", attempt, max_retries, remote_path, e
             )
             if local_file_path.exists():
-                logger.warning(
-                    "Deleting incomplete file: %s",
-                    local_file_path
-                )
+                logger.warning("Deleting incomplete file: %s", local_file_path)
                 local_file_path.unlink()
             if attempt == max_retries:
                 logger.info(
-                    "Max retries reached for %s, falling back to HTTP",
-                    remote_path
+                    "Max retries reached for %s, falling back to HTTP", remote_path
                 )
                 try:
                     return download_via_http(remote_path, download_folder)
                 except Exception as http_e:
-                    logger.error(
-                        "HTTPS fallback failed: %s",
-                        http_e
-                    )
+                    logger.error("HTTPS fallback failed: %s", http_e)
                     return None
         time.sleep(backoff)
         backoff *= 2
 
-    logger.error(
-        "Failed to download %s after %d attempts.",
-        remote_path,
-        max_retries
-    )
+    logger.error("Failed to download %s after %d attempts.", remote_path, max_retries)
     if local_file_path.exists():
         local_file_path.unlink()
     return None
+
 
 def _safe_mlsd(ftp: ftplib.FTP, path: str) -> list[tuple[str, dict]]:
     """Return MLSD listings if supported; otherwise fall back to NLST names only."""
@@ -216,6 +223,7 @@ def _safe_mlsd(ftp: ftplib.FTP, path: str) -> list[tuple[str, dict]]:
         names = ftp.nlst(path)
         return [(n.split("/")[-1], {"type": "file"}) for n in names]
 
+
 def list_full_sdf_archives(ftp: ftplib.FTP) -> list[str]:
     """List *.sdf.gz in CURRENT-Full/SDF."""
     entries = _safe_mlsd(ftp, FULL_SDF_DIR)
@@ -223,7 +231,9 @@ def list_full_sdf_archives(ftp: ftplib.FTP) -> list[str]:
     gz.sort()
     return [f"{FULL_SDF_DIR}/{name}" for name in gz]
 
+
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}(-\d{2})?$")  # accept YYYY-MM or YYYY-MM-DD
+
 
 def list_monthly_sdf_archives_since(ftp: ftplib.FTP, since: date) -> list[str]:
     """
@@ -248,12 +258,13 @@ def list_monthly_sdf_archives_since(ftp: ftplib.FTP, since: date) -> list[str]:
                 results.append(f"{sdf_dir}/{fname}")
     return results
 
+
 def remote_md5_path(remote_gz_path: str) -> str:
     return f"{remote_gz_path}.md5"
 
+
 def get_changed_sdf_files(
-    ftp: ftplib.FTP,
-    since: date | None
+    ftp: ftplib.FTP, since: date | None
 ) -> list[tuple[str, str, str]]:
     """
     Return a list of (remote_gz, remote_md5, source) to download/process.

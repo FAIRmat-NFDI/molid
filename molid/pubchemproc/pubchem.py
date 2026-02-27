@@ -38,7 +38,11 @@ def process_file(
                             break
                         value_lines.append(vline)
                     value = "\n".join(value_lines).strip()
-                    key = [k for k, v in DEFAULT_PROPERTIES_MASTER.items() if v == property_name][0]
+                    key = [
+                        k
+                        for k, v in DEFAULT_PROPERTIES_MASTER.items()
+                        if v == property_name
+                    ][0]
                     compound_data[key] = value
             elif line == "$$$$":
                 if compound_data:
@@ -46,11 +50,12 @@ def process_file(
                 compound_data = {}
     return data
 
+
 def unpack_and_process_file(
     file_name: str,
     download_folder: Path | str,
     processed_folder: Path | str,
-    process_callback: Callable[[list[dict[str, Any]]], None]
+    process_callback: Callable[[list[dict[str, Any]]], None],
 ) -> bool:
     """
     Unpack, process, and save a single file with tracking.

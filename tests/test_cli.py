@@ -1,4 +1,3 @@
-
 import sqlite3
 import json
 import pytest
@@ -48,7 +47,7 @@ def test_search_master_smiles_found(tmp_path, runner):
     data = ("C", "ABCDEF1234567890-UHFFFAOYSA-N", "InChI=1S/C", "C")
     conn.execute(
         "INSERT INTO compound_data (CanonicalSMILES, InChIKey, InChI, MolecularFormula) VALUES (?, ?, ?, ?)",
-        data
+        data,
     )
     conn.commit()
     conn.close()
@@ -62,6 +61,7 @@ def test_search_master_smiles_found(tmp_path, runner):
     assert result.exit_code == 0, result.output
     assert "[Source] master" in result.output
 
+
 def test_search_master_not_found(tmp_path, runner):
     db_file = tmp_path / "empty.db"
     DatabaseManager(str(db_file)).initialize(OFFLINE_SCHEMA)
@@ -73,27 +73,28 @@ def test_search_master_not_found(tmp_path, runner):
     result = runner.invoke(cli, ["search", "UNKNOWN", "--id-type", "smiles"], env=env)
     assert result.exit_code != 0
 
+
 def test_config_set_and_show(monkeypatch, tmp_path):
     # Redirect HOME so ~/.molid.env goes under tmp
     monkeypatch.setenv("HOME", str(tmp_path))
     r = CliRunner()
 
     # set-master / set-cache
-    out1 = r.invoke(cli, ["config","set-master", str(tmp_path/"master.db")])
+    out1 = r.invoke(cli, ["config", "set-master", str(tmp_path / "master.db")])
     assert out1.exit_code == 0
-    out2 = r.invoke(cli, ["config","set-cache", str(tmp_path/"cache.db")])
+    out2 = r.invoke(cli, ["config", "set-cache", str(tmp_path / "cache.db")])
     assert out2.exit_code == 0
 
     # set-sources
-    out3 = r.invoke(cli, ["config","set-sources","cache","api"])
+    out3 = r.invoke(cli, ["config", "set-sources", "cache", "api"])
     assert out3.exit_code == 0
 
     # set-cache-writes
-    out4 = r.invoke(cli, ["config","set-cache-writes","true"])
+    out4 = r.invoke(cli, ["config", "set-cache-writes", "true"])
     assert out4.exit_code == 0
 
     # show
-    out5 = r.invoke(cli, ["config","show"])
+    out5 = r.invoke(cli, ["config", "show"])
     assert out5.exit_code == 0
     s = out5.output
     assert '"master_db"' in s and '"cache_db"' in s

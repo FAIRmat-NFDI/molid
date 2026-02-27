@@ -10,14 +10,13 @@ from molid.db.schema import CACHE_COLUMNS
 
 logger = logging.getLogger(__name__)
 
-CACHE_TABLE = 'cached_molecules'
-OFFLINE_TABLE_MASTER = 'compound_data'
-OFFLINE_TABLE_CAS    = 'cas_mapping'
+CACHE_TABLE = "cached_molecules"
+OFFLINE_TABLE_MASTER = "compound_data"
+OFFLINE_TABLE_CAS = "cas_mapping"
+
 
 def basic_offline_search(
-    offline_db_file: str,
-    id_type: str,
-    id_value: str
+    offline_db_file: str, id_type: str, id_value: str
 ) -> list[dict[str, Any]]:
     """
     Query SQLite database 'db_file' on table 'table' for rows matching id_type = id_value.
@@ -26,7 +25,7 @@ def basic_offline_search(
         logger.debug("DB file %s does not exist", offline_db_file)
         return []
 
-    if id_type == 'cas':
+    if id_type == "cas":
         # import pdb; pdb.set_trace()
         return master_lookup_by_cas(offline_db_file, id_value)
 
@@ -35,8 +34,8 @@ def basic_offline_search(
     if id_type == "inchikey":
         # Try full InChIKey match first
         result = mgr.query_one(
-            f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE InChIKey = ?",
-            [id_value])
+            f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE InChIKey = ?", [id_value]
+        )
 
         if result:
             return [result]
@@ -44,21 +43,22 @@ def basic_offline_search(
         # Fallback to InChIKey14 prefix match
         result = mgr.query_one(
             f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE substr(InChIKey,1,14) = ?",
-            [id_value[:14]])
+            [id_value[:14]],
+        )
         if result:
             warnings.warn(
-            "basic_offline_search: full InChIKey lookup failed; "
-            "falling back to InChIKey14 prefix match: this is a skeletal match – "
-            "it ignores stereochemistry (and isotopic labels), so results may be ambiguous.",
-            UserWarning)
+                "basic_offline_search: full InChIKey lookup failed; "
+                "falling back to InChIKey14 prefix match: this is a skeletal match – "
+                "it ignores stereochemistry (and isotopic labels), so results may be ambiguous.",
+                UserWarning,
+            )
             return [result]
 
     sql = f"SELECT * FROM {OFFLINE_TABLE_MASTER} WHERE {id_type} = ?"
     results = mgr.query_all(sql, [id_value])
     if results:
         return [
-            {k: v for k, v in record.items() if v is not None}
-            for record in results
+            {k: v for k, v in record.items() if v is not None} for record in results
         ]
 
     return []
@@ -70,17 +70,16 @@ def master_lookup_by_cas(offline_db_file: str, cas: str) -> list[dict[str, Any]]
         logger.debug("Offline DB not found at %s", offline_db_file)
         return []
     db = DatabaseManager(offline_db_file)
-    sql = (f"SELECT cd.* FROM {OFFLINE_TABLE_CAS} cm "
-           f"JOIN {OFFLINE_TABLE_MASTER} cd ON cd.CID = cm.CID "
-           f"WHERE cm.CAS = ? ORDER BY (cm.source='synonym') DESC, cm.confidence DESC")
+    sql = (
+        f"SELECT cd.* FROM {OFFLINE_TABLE_CAS} cm "
+        f"JOIN {OFFLINE_TABLE_MASTER} cd ON cd.CID = cm.CID "
+        f"WHERE cm.CAS = ? ORDER BY (cm.source='synonym') DESC, cm.confidence DESC"
+    )
     rows = db.query_all(sql, [cas])
     return rows or []
 
-def advanced_search(
-    db_file: str,
-    id_type: str,
-    id_value: str
-) -> list[dict[str, Any]]:
+
+def advanced_search(db_file: str, id_type: str, id_value: str) -> list[dict[str, Any]]:
     """
     Query SQLite cache DB. Special handling:
       - CAS: resolve via cas_mapping (highest confidence, newest), LIMIT 1.
@@ -133,7 +132,9 @@ def advanced_search(
         column = columns.get(key)
 
     if not column:
-        raise ValueError(f"Unsupported search field '{id_type}' for table '{CACHE_TABLE}'")
+        raise ValueError(
+            f"Unsupported search field '{id_type}' for table '{CACHE_TABLE}'"
+        )
 
     sql = f"SELECT m.*,( SELECT cm.CAS FROM cas_mapping cm WHERE cm.CID = m.CID ORDER BY (cm.source='synonym') DESC, cm.confidence DESC, cm.updated_at DESC LIMIT 1) AS CAS FROM cached_molecules m WHERE {column} = ?"
     results = mgr.query_all(sql, [id_value])

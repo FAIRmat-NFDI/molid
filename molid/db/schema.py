@@ -1,5 +1,6 @@
 import re
 
+
 def _extract_columns(schema: str, table: str) -> tuple[str, ...]:
     m = re.search(rf"CREATE TABLE IF NOT EXISTS {table} \((.*?)\)", schema, re.S | re.I)
     cols = []
@@ -11,6 +12,7 @@ def _extract_columns(schema: str, table: str) -> tuple[str, ...]:
         if col != "fetched_at":
             cols.append(col)
     return tuple(cols)
+
 
 NUMERIC_FIELDS = [
     "XLogP",
@@ -92,9 +94,7 @@ OFFLINE_SDF_TAGS: dict[str, str] = {
 }
 
 DEFAULT_PROPERTIES_MASTER = {
-    col: OFFLINE_SDF_TAGS[col]
-    for col in OFFLINE_COLUMNS
-    if col in OFFLINE_SDF_TAGS
+    col: OFFLINE_SDF_TAGS[col] for col in OFFLINE_COLUMNS if col in OFFLINE_SDF_TAGS
 }
 
 # ------------------------------------------------------------------

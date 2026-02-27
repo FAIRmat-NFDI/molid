@@ -4,17 +4,30 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class UnsupportedIdentifierForMode(Exception):
     """Raised when a given identifier is not supported by the chosen search mode."""
+
     pass
 
-_BASIC_ALLOWED   = ("cid", "title", "iupacname", "molecularformula", "inchi", "inchikey","smiles", "canonicalsmiles", "isomericsmiles", "cas")
-_ADV_ALLOWED     = _BASIC_ALLOWED + ("isomericsmiles",)
+
+_BASIC_ALLOWED = (
+    "cid",
+    "title",
+    "iupacname",
+    "molecularformula",
+    "inchi",
+    "inchikey",
+    "smiles",
+    "canonicalsmiles",
+    "isomericsmiles",
+    "cas",
+)
+_ADV_ALLOWED = _BASIC_ALLOWED + ("isomericsmiles",)
 
 
 def normalize_query(
-    query: dict[str, Any],
-    mode: Literal["basic","advanced"]
+    query: dict[str, Any], mode: Literal["basic", "advanced"]
 ) -> tuple[str, Any]:
     if not isinstance(query, dict) or len(query) != 1:
         raise ValueError("Expected a dict with exactly one identifier.")
@@ -34,8 +47,7 @@ def normalize_query(
 
     if k in ("formula", "molecularformula"):
         if k == "formula" and not any(ch.isupper() for ch in v):
-            raise ValueError('Given formula has no upper character.')
+            raise ValueError("Given formula has no upper character.")
         return "molecularformula", v
 
     return k, v
-

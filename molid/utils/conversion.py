@@ -16,6 +16,7 @@ MASS_TOLERANCE = 0.1
 def _require_openbabel():
     try:
         from openbabel import openbabel  # lazy import
+
         return openbabel
     except Exception:
         raise ImportError(
@@ -23,9 +24,9 @@ def _require_openbabel():
             "Install it to enable XYZ/Atoms → InChIKey conversion."
         )
 
+
 def convert_xyz_to_inchikey(
-    xyz_content: str,
-    isotopes: dict[int, int] | None = None
+    xyz_content: str, isotopes: dict[int, int] | None = None
 ) -> str:
     """Convert XYZ file content to an (optionally isotopic) InChIKey using OpenBabel."""
     ob = _require_openbabel()
@@ -54,9 +55,7 @@ def convert_xyz_to_inchikey(
     return inchikey
 
 
-def atoms_to_inchikey(
-    atoms: Atoms
-) -> str:
+def atoms_to_inchikey(atoms: Atoms) -> str:
     """
     Convert an ASE Atoms object to an InChIKey, automatically detecting
     and tagging any isotopic atoms so the resulting InChIKey includes
@@ -77,10 +76,8 @@ def atoms_to_inchikey(
     # convert, passing isotope flags if any
     return convert_xyz_to_inchikey(xyz_content, isotopes=isotopes or None)
 
-def convert_to_inchikey(
-    identifier: str,
-    id_type: str
-) -> str:
+
+def convert_to_inchikey(identifier: str, id_type: str) -> str:
     """
     Convert a non-XYZ identifier (SMILES, InChI, etc.) to InChIKey.
     Isotopic information must be encoded in the identifier itself for
@@ -99,7 +96,10 @@ def convert_to_inchikey(
 
     return conv.WriteString(mol).strip()
 
-def coerce_numeric_fields(record: dict[str, Any], numeric_fields: set[str]) -> dict[str, Any]:
+
+def coerce_numeric_fields(
+    record: dict[str, Any], numeric_fields: set[str]
+) -> dict[str, Any]:
     """Convert fields in record to floats/ints where appropriate."""
     out = {}
     for k, v in record.items():

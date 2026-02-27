@@ -7,6 +7,7 @@ from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
+
 class DatabaseManager:
     """
     Generic SQLite helper for schema initialization,
@@ -25,7 +26,9 @@ class DatabaseManager:
                 try:
                     conn.executescript(sql_script)
                 except Exception:
-                    logger.exception('Schema initialization failed for %s', self.db_path)
+                    logger.exception(
+                        "Schema initialization failed for %s", self.db_path
+                    )
                     raise
             logger.info("Initialized database schema at %s", self.db_path)
         except sqlite3.Error as e:
@@ -37,7 +40,7 @@ class DatabaseManager:
         table: str,
         columns: list[str],
         rows: list[list[Any]],
-        ignore_conflicts: bool = True
+        ignore_conflicts: bool = True,
     ) -> None:
         """
         Insert multiple rows into `table` for the given `columns`.
@@ -61,12 +64,7 @@ class DatabaseManager:
             logger.error("Failed to insert rows into %s: %s", table, e)
             raise
 
-    def exists(
-        self,
-        table: str,
-        where_clause: str,
-        params: list[Any]
-    ) -> bool:
+    def exists(self, table: str, where_clause: str, params: list[Any]) -> bool:
         """Return True if a row exists matching the given WHERE clause."""
         sql = f"SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1"
         try:
@@ -77,11 +75,7 @@ class DatabaseManager:
             logger.error("Existence check failed on %s: %s", self.db_path, e)
             return False
 
-    def query_one(
-        self,
-        sql: str,
-        params: list[Any] = None
-    ) -> dict[str, Any] | None:
+    def query_one(self, sql: str, params: list[Any] = None) -> dict[str, Any] | None:
         """Return a single row as a dict, or None if not found."""
         params = params or []
         with sqlite3.connect(self.db_path) as conn:
@@ -90,11 +84,7 @@ class DatabaseManager:
             row = cur.fetchone()
             return dict(row) if row else None
 
-    def query_all(
-        self,
-        sql: str,
-        params: list[Any] = None
-    ) -> list[dict[str, Any]]:
+    def query_all(self, sql: str, params: list[Any] = None) -> list[dict[str, Any]]:
         """Return all matching rows as a list of dicts."""
         params = params or []
         with sqlite3.connect(self.db_path) as conn:
@@ -113,6 +103,5 @@ class DatabaseManager:
                 conn.executemany(sql, seq_of_params)
                 conn.commit()
             except Exception:
-                logger.exception('executemany failed on %s', self.db_path)
+                logger.exception("executemany failed on %s", self.db_path)
                 raise
-

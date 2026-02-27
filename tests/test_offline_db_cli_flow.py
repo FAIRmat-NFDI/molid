@@ -4,6 +4,7 @@ from molid.db.db_utils import create_offline_db
 from molid.db.sqlite_manager import DatabaseManager
 from molid.db import offline_db_cli as odc
 
+
 def test_update_database_happy_path(monkeypatch, tmp_path):
     db = str(tmp_path / "master.db")
     downloads = tmp_path / "dl"
@@ -27,29 +28,35 @@ def test_update_database_happy_path(monkeypatch, tmp_path):
         # write placeholder; content irrelevant for this test
         p.write_text("dummy")
         return p
+
     monkeypatch.setattr(odc, "download_file_with_resume", fake_download)
 
     # md5 verification always OK
     monkeypatch.setattr(odc, "verify_md5", lambda gz, md5: True)
 
     # unpack/process: directly call the callback with tiny record(s)
-    def fake_unpack_and_process(file_name, download_folder, processed_folder, process_callback):
+    def fake_unpack_and_process(
+        file_name, download_folder, processed_folder, process_callback
+    ):
         # emulate SDF extraction: write a minimal record into DB via callback
-        data = [{
-            "CID": 123,
-            "Title": "Foo",
-            "IUPACName": "bar",
-            "MolecularFormula": "C2H6",
-            "CanonicalSMILES": "CC",
-            "InChIKey": "OTMSDBZUPAUEDD-UHFFFAOYSA-N",
-            "InChI": "InChI=1S/C2H6/c1-2/h1-2H3",
-            "ExactMass": 30.04695,
-            "MolecularWeight": 30.07,
-            "MonoisotopicMass": 30.04695,
-            "CAS": None
-        }]
+        data = [
+            {
+                "CID": 123,
+                "Title": "Foo",
+                "IUPACName": "bar",
+                "MolecularFormula": "C2H6",
+                "CanonicalSMILES": "CC",
+                "InChIKey": "OTMSDBZUPAUEDD-UHFFFAOYSA-N",
+                "InChI": "InChI=1S/C2H6/c1-2/h1-2H3",
+                "ExactMass": 30.04695,
+                "MolecularWeight": 30.07,
+                "MonoisotopicMass": 30.04695,
+                "CAS": None,
+            }
+        ]
         process_callback(data)
         return True
+
     monkeypatch.setattr(odc, "unpack_and_process_file", fake_unpack_and_process)
 
     # run update

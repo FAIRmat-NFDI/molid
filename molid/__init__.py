@@ -9,4 +9,3 @@ try:
 except PackageNotFoundError:
     # When running from source (not installed), fall back to a default
     __version__ = "0.0.0"
-
