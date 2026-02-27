@@ -8,6 +8,7 @@ from molid.db.schema import OFFLINE_SCHEMA, CACHE_SCHEMA
 
 logger = logging.getLogger(__name__)
 
+
 def insert_dict_records(
     db_file: str,
     table: str,
@@ -23,22 +24,25 @@ def insert_dict_records(
     mgr = DatabaseManager(db_file)
     columns = list(records[0].keys())
     rows = [[rec.get(col) for col in columns] for rec in records]
-    mgr.insert_many(table=table, columns=columns, rows=rows, ignore_conflicts=ignore_conflicts)
+    mgr.insert_many(
+        table=table, columns=columns, rows=rows, ignore_conflicts=ignore_conflicts
+    )
 
-def initialize_database(
-    db_file: str,
-    sql_script: str
-) -> None:
+
+def initialize_database(db_file: str, sql_script: str) -> None:
     """Initialize the database schema from a SQL script."""
     DatabaseManager(db_file).initialize(sql_script)
+
 
 def create_offline_db(db_file: str) -> None:
     """Create or update the full offline PubChem database schema."""
     initialize_database(db_file, OFFLINE_SCHEMA)
 
+
 def create_cache_db(db_file: str) -> None:
     """Create or update the user-specific API cache database schema."""
     initialize_database(db_file, CACHE_SCHEMA)
+
 
 def upsert_archive_state(db_file: str, name: str, **fields: Any) -> None:
     """
@@ -64,12 +68,13 @@ def upsert_archive_state(db_file: str, name: str, **fields: Any) -> None:
     params = [name] + [fields[c] for c in cols]
     db.execute(sql, params)
 
+
 def get_archive_state(db_file: str, name: str) -> Optional[dict[str, Any]]:
     db = DatabaseManager(db_file)
     return db.query_one(
-        "SELECT * FROM processed_archives WHERE archive_name = ?",
-        [name]
+        "SELECT * FROM processed_archives WHERE archive_name = ?", [name]
     )
+
 
 def save_to_database(db_file: str, data: list[dict], columns: list[str]) -> None:
     if not data or not columns:

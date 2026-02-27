@@ -17,15 +17,16 @@ from molid.utils.settings import load_config, AppConfig
 
 logger = logging.getLogger(__name__)
 
+
 def _create_search_service() -> SearchService:
     """
     Instantiate a SearchService from Pydantic settings (env/defaults).
     """
     cfg: AppConfig = load_config()
     master_db = cfg.master_db
-    cache_db  = cfg.cache_db
-    sources   = cfg.sources
-    cache_w   = cfg.cache_writes
+    cache_db = cfg.cache_db
+    sources = cfg.sources
+    cache_w = cfg.cache_writes
 
     _sanity_check(master_db, cache_db, sources)
     search_cfg = SearchConfig(sources=sources, cache_writes=cache_w)
@@ -39,6 +40,7 @@ def search_identifier(input: dict[str, Any]) -> tuple[list[dict[str, Any]], str]
     """
     service = _create_search_service()
     return service.search(input)
+
 
 def search_from_atoms(atoms: Atoms) -> tuple[list[dict[str, Any]], str]:
     """
@@ -60,25 +62,25 @@ def search_from_file(file_path: str) -> tuple[list[dict[str, Any]], str]:
     - .sdf: extract InChIKey via process_file, then search
     Returns (list of result dicts, source).
     """
-    #TODO: Rework function. FIELDS_TO_EXTRACT is strange
+    # TODO: Rework function. FIELDS_TO_EXTRACT is strange
     p = Path(file_path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
     ext = p.suffix.lower()
 
-    if ext == '.xyz':
-        atoms = read(str(p), format='xyz')
+    if ext == ".xyz":
+        atoms = read(str(p), format="xyz")
         return search_from_atoms(atoms)
 
-    if ext == '.extxyz':
-        atoms = read(str(p), format='extxyz')
+    if ext == ".extxyz":
+        atoms = read(str(p), format="extxyz")
         return search_from_atoms(atoms)
 
-    if ext == '.sdf':
+    if ext == ".sdf":
         records = process_file(str(p))
-        if not records or 'InChIKey' not in records[0]:
+        if not records or "InChIKey" not in records[0]:
             raise ValueError(f"No InChIKey found in SDF: {file_path}")
-        inchikey = records[0]['InChIKey']
+        inchikey = records[0]["InChIKey"]
         return search_identifier({"inchikey": inchikey})
     raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -107,7 +109,6 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
     if isinstance(data, Path) and data.is_file():
         return search_from_file(str(data))
 
-
     # Raw XYZ content
     if isinstance(data, str):
         # Try xyz first, then fall back to extxyz (some writers emit minor variants)
@@ -122,15 +123,23 @@ def search_from_input(data: Any) -> tuple[list[dict[str, Any]], str]:
             "Provide an ASE Atoms, a file path (.xyz/.extxyz/.sdf), raw XYZ text, or an identifier dict."
         )
 
+    raise ValueError(
+        "Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content."
+    )
 
-    raise ValueError("Input type not recognized: must be ASE Atoms, file path, dict (of identifiers) or raw XYZ content.")
 
 def _sanity_check(master_db: str, cache_db: str, sources: list[str]) -> None:
     s = [x.lower() for x in (sources or [])]
-    unknown = [x for x in s if x not in {"master","cache","api"}]
+    unknown = [x for x in s if x not in {"master", "cache", "api"}]
     if unknown:
-        raise ValueError(f"Unknown sources: {unknown!r}. Use only 'master','cache','api'.")
+        raise ValueError(
+            f"Unknown sources: {unknown!r}. Use only 'master','cache','api'."
+        )
     if "master" in s and not Path(master_db).exists():
-        raise FileNotFoundError(f"File not found: {master_db}. Master DB required when using 'master' source.")
+        raise FileNotFoundError(
+            f"File not found: {master_db}. Master DB required when using 'master' source."
+        )
     if "cache" in s and not Path(cache_db).exists():
-        raise FileNotFoundError(f"File not found: {cache_db}. Cache DB required when using 'cache' source.")
+        raise FileNotFoundError(
+            f"File not found: {cache_db}. Cache DB required when using 'cache' source."
+        )

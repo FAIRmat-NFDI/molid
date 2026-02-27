@@ -10,38 +10,38 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Allow tests or callers to specify a custom env file location
 ENV_FILE = Path(os.getenv("MOLID_ENV_FILE", str(Path.home() / ".molid.env")))
 
+
 class AppConfig(BaseSettings):
     """
     Application configuration for MolID, loaded via Pydantic BaseSettings.
     Persists overrides in ~/.molid.env
     """
+
     master_db: str = Field(
         str(Path(user_data_dir("molid")) / "master" / "pubchem_master.db"),
-        description="Path to the master PubChem database"
-        )
+        description="Path to the master PubChem database",
+    )
     cache_db: str = Field(
         str(Path(user_data_dir("molid")) / "cache" / "pubchem_cache.db"),
-        description="Path to the PubChem cache database"
-        )
+        description="Path to the PubChem cache database",
+    )
     sources: list[str] = Field(
         default_factory=lambda: ["cache", "api"],
-        description='Ordered backends to query: any of "master", "cache", "api".'
+        description='Ordered backends to query: any of "master", "cache", "api".',
     )
     cache_writes: bool = Field(
-        True,
-        description="If API is used, persist results into cache."
+        True, description="If API is used, persist results into cache."
     )
     download_folder: str = Field(
         str(Path(user_cache_dir("molid")) / "downloads"),
-        description="Where to cache PubChem SDF archives"
-        )
+        description="Where to cache PubChem SDF archives",
+    )
     processed_folder: str = Field(
         str(Path(user_data_dir("molid")) / "processed"),
-        description="Where to unpack and stage SDF files"
-        )
+        description="Where to unpack and stage SDF files",
+    )
     max_files: int | None = Field(
-        None,
-        description="Default maximum number of SDF files to process (None = all)"
+        None, description="Default maximum number of SDF files to process (None = all)"
     )
     model_config = SettingsConfigDict(
         env_prefix="MOLID_",
@@ -62,9 +62,11 @@ class AppConfig(BaseSettings):
         ),
     )
 
+
 def load_config() -> AppConfig:
     """Load application configuration from environment and ~/.molid.env"""
     return AppConfig()
+
 
 def save_config(**kwargs) -> None:
     """
@@ -82,6 +84,4 @@ def save_config(**kwargs) -> None:
         env_key = f"MOLID_{key.upper()}"
         lines[env_key] = str(val)
 
-    ENV_FILE.write_text(
-        "\n".join(f"{k}={v}" for k, v in lines.items())
-    )
+    ENV_FILE.write_text("\n".join(f"{k}={v}" for k, v in lines.items()))

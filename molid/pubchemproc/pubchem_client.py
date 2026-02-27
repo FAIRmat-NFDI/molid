@@ -12,11 +12,11 @@ from molid.utils.conversion import coerce_numeric_fields
 
 # -------- Tunables (env-overridable, no hard dependency on settings.py) -----
 _CONNECT_TIMEOUT = float(os.getenv("MOLID_HTTP_CONNECT_TIMEOUT", "10"))
-_READ_TIMEOUT    = float(os.getenv("MOLID_HTTP_READ_TIMEOUT", "35"))
-_TIMEOUT         = (_CONNECT_TIMEOUT, _READ_TIMEOUT)
+_READ_TIMEOUT = float(os.getenv("MOLID_HTTP_READ_TIMEOUT", "35"))
+_TIMEOUT = (_CONNECT_TIMEOUT, _READ_TIMEOUT)
 
-_RETRIES         = int(os.getenv("MOLID_HTTP_RETRIES", "4"))
-_BACKOFF         = float(os.getenv("MOLID_HTTP_BACKOFF", "0.7"))
+_RETRIES = int(os.getenv("MOLID_HTTP_RETRIES", "4"))
+_BACKOFF = float(os.getenv("MOLID_HTTP_BACKOFF", "0.7"))
 
 _RETRY = Retry(
     total=_RETRIES,
@@ -38,12 +38,13 @@ def get_session() -> requests.Session:
     if _session is None:
         s = requests.Session()
         s.mount("https://", HTTPAdapter(max_retries=_RETRY))
-        s.mount("http://",  HTTPAdapter(max_retries=_RETRY))
+        s.mount("http://", HTTPAdapter(max_retries=_RETRY))
         _session = s
     return _session
 
 
 # ----------------------------- Namespace helpers ----------------------------
+
 
 def ns_for_id_type(id_type: str) -> str:
     t = id_type.lower()
@@ -61,6 +62,7 @@ def ns_for_id_type(id_type: str) -> str:
 
 
 # ------------------------------- High-level API -----------------------------
+
 
 def resolve_to_cids(id_type: str, id_value: str) -> list[int]:
     """
@@ -83,10 +85,9 @@ def resolve_to_cids(id_type: str, id_value: str) -> list[int]:
             return []
         r.raise_for_status()
         obj = r.json()
-        cids = (
-            obj.get("IdentifierList", {}).get("CID")
-            or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
-        )
+        cids = obj.get("IdentifierList", {}).get("CID") or obj.get(
+            "InformationList", {}
+        ).get("Information", [{}])[0].get("CID")
         if not cids:
             return []
         return [int(c) for c in (cids if isinstance(cids, list) else [cids])]
@@ -95,10 +96,9 @@ def resolve_to_cids(id_type: str, id_value: str) -> list[int]:
     ns = ns_for_id_type(key)
 
     def _extract_cids(obj: dict) -> list[int]:
-        c = (
-            obj.get("IdentifierList", {}).get("CID")
-            or obj.get("InformationList", {}).get("Information", [{}])[0].get("CID")
-        )
+        c = obj.get("IdentifierList", {}).get("CID") or obj.get(
+            "InformationList", {}
+        ).get("Information", [{}])[0].get("CID")
         if not c:
             return []
         if not isinstance(c, list):

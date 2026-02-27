@@ -37,6 +37,7 @@ MIN_FREE_GB = 50
 # Small, focused helpers (unit-test friendly)
 # ---------------------------------------------------------------------------
 
+
 def _get_last_ingested_date(database_file: str) -> Optional[date]:
     """Return the most recent ingestion date stored in processed_archives (UTC)."""
     from molid.db.sqlite_manager import DatabaseManager
@@ -75,14 +76,16 @@ def _connect_ftp(server: str = FTP_SERVER) -> ftplib.FTP:
     return ftp
 
 
-def _build_update_plan(last_dt: Optional[date], max_files: Optional[int]) -> list[Tuple[str, str, str]]:
+def _build_update_plan(
+    last_dt: Optional[date], max_files: Optional[int]
+) -> list[Tuple[str, str, str]]:
     """Return a list of (remote_gz, remote_md5, source) to ingest."""
     logger.info("Connecting to FTP: %s", FTP_SERVER)
     with _connect_ftp() as ftp:
         logger.info("Building update plan (since=%s)", last_dt if last_dt else "FULL")
         plan = get_changed_sdf_files(ftp, since=last_dt)
     if max_files:
-        plan = plan[: max_files]
+        plan = plan[:max_files]
     logger.info(
         "Update plan: %s (%d archives)",
         "FULL snapshot" if last_dt is None else f"MONTHLY since {last_dt.isoformat()}",
@@ -137,7 +140,9 @@ def _already_ingested_and_unchanged(
 
     md5_local = download_file_with_resume(remote_md5_url, download_folder)
     if not md5_local:
-        logger.warning("Could not fetch MD5 for %s; will re-download anyway.", file_name)
+        logger.warning(
+            "Could not fetch MD5 for %s; will re-download anyway.", file_name
+        )
         return False
 
     new_md5 = read_expected_md5(Path(md5_local))
@@ -156,17 +161,20 @@ def _ingest(
     processed_folder: str,
 ) -> bool:
     """Unpack, process, and persist one archive. Returns success flag."""
+
     def _process_and_save(data: list[dict]):
         if not data:
             return
         cleaned = [coerce_numeric_fields(rec, NUMERIC_FIELDS) for rec in data]
         save_to_database(database_file, cleaned, list(cleaned[0].keys()))
+
     return unpack_and_process_file(
         file_name=file_name,
         download_folder=download_folder,
         processed_folder=processed_folder,
         process_callback=_process_and_save,
     )
+
 
 def _record_success(
     database_file: str,
@@ -214,7 +222,9 @@ def _process_single_archive(
     remote_gz, remote_md5, source = item
     file_name = Path(remote_gz).name
 
-    if _already_ingested_and_unchanged(database_file, file_name, remote_md5, download_folder):
+    if _already_ingested_and_unchanged(
+        database_file, file_name, remote_md5, download_folder
+    ):
         logger.info("Skipped (unchanged): %s", file_name)
         return True
 

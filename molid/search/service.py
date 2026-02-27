@@ -17,8 +17,10 @@ from molid.utils.formula import canonicalize_formula
 
 logger = logging.getLogger(__name__)
 
+
 def _has_readable_file(p: str | None) -> bool:
     return bool(p) and os.path.isfile(p) and os.access(p, os.R_OK)
+
 
 def _is_writable_dir(path: str | None) -> bool:
     d = Path(os.path.dirname(path) or ".")
@@ -31,6 +33,8 @@ def _is_writable_dir(path: str | None) -> bool:
         return True
     except Exception:
         return False
+
+
 # ---------------------------------------------------------------------------
 # Custom exceptions
 # ---------------------------------------------------------------------------
@@ -48,9 +52,11 @@ class DatabaseNotFound(Exception):
 # Configuration dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SearchConfig:
     """Runtime configuration for SearchService (ordered backends)."""
+
     sources: list[str]
     cache_writes: bool = True
 
@@ -59,6 +65,7 @@ class SearchConfig:
 # Main service entry‑point
 # ---------------------------------------------------------------------------
 
+
 class SearchService:
     """High‑level interface for MolID look‑ups across all supported backends."""
 
@@ -66,16 +73,10 @@ class SearchService:
     # Construction / validation
     # ---------------------------------------------------------------------
 
-    def __init__(
-        self,
-        master_db: str,
-        cache_db: str,
-        cfg: SearchConfig
-    ) -> None:
+    def __init__(self, master_db: str, cache_db: str, cfg: SearchConfig) -> None:
         self.master_db = master_db
         self.cache_db = cache_db
         self.cfg = cfg
-
 
         # If write-through caching is enabled and api may be used, ensure cache schema exists.
         src = [s.lower() for s in (self.cfg.sources or [])]
@@ -86,10 +87,12 @@ class SearchService:
         # Fail fast if requested sources require local files.
         self._ensure_required_files()
 
-        self._dispatch: dict[str, Callable[[dict[str, Any]], tuple[list[dict[str, Any]], str]]] = {
+        self._dispatch: dict[
+            str, Callable[[dict[str, Any]], tuple[list[dict[str, Any]], str]]
+        ] = {
             "master": self._search_master,
-            "cache":  self._search_cache,
-            "api":    self._search_api,
+            "cache": self._search_cache,
+            "api": self._search_api,
         }
 
     # ---------------------------------------------------------------------
@@ -109,7 +112,9 @@ class SearchService:
         query_lc = {k.lower(): v for k, v in query.items()}
         sources = [s.lower() for s in (self.cfg.sources or [])]
         if not sources:
-            raise ValueError("No sources configured. Set AppConfig.sources to e.g. ['cache','api'].")
+            raise ValueError(
+                "No sources configured. Set AppConfig.sources to e.g. ['cache','api']."
+            )
 
         for tier in sources:
             # 1) Quick availability/permission gates (same as before)
@@ -121,8 +126,9 @@ class SearchService:
                 continue
             if tier == "api":
                 if self.cfg.cache_writes and not _is_writable_dir(self.cache_db):
-                    logger.debug("api cache writes disabled (cache dir not writable); proceeding without writes")
-
+                    logger.debug(
+                        "api cache writes disabled (cache dir not writable); proceeding without writes"
+                    )
 
             # 2) Execute tier
             try:
@@ -174,23 +180,17 @@ class SearchService:
     # Mode‑specific implementations
     # ------------------------------------------------------------------
 
-    def _search_master(
-        self,
-        input: dict[str, Any]
-    ) -> tuple[list[dict[str, Any]], str]:
-        id_type, id_value = normalize_query(input, 'basic')
+    def _search_master(self, input: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+        id_type, id_value = normalize_query(input, "basic")
         if id_type == "molecularformula":
             id_value = canonicalize_formula(str(id_value))
         record = basic_offline_search(self.master_db, id_type, id_value)
         if not record:
             raise MoleculeNotFound(f"{input!s} not found in master DB.")
-        return record, 'master'
+        return record, "master"
 
-    def _search_cache(
-        self,
-        input: dict[str, Any]
-    ) -> tuple[list[dict[str, Any]], str]:
-        id_type, id_value = normalize_query(input, 'advanced')
+    def _search_cache(self, input: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+        id_type, id_value = normalize_query(input, "advanced")
         if id_type == "molecularformula":
             id_value = canonicalize_formula(str(id_value))
         results = advanced_search(self.cache_db, id_type, id_value)
@@ -199,13 +199,10 @@ class SearchService:
                 "No compounds matched identifier: "
                 + ", ".join(f"{k}={v}" for k, v in input.items())
             )
-        return results, 'cache'
+        return results, "cache"
 
-    def _search_api(
-        self,
-        input: dict[str, Any]
-    ) -> tuple[list[dict[str, Any]], str]:
-        id_type, id_value = normalize_query(input, 'advanced')
+    def _search_api(self, input: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+        id_type, id_value = normalize_query(input, "advanced")
         if id_type == "molecularformula":
             id_value = canonicalize_formula(str(id_value))
 
@@ -214,7 +211,7 @@ class SearchService:
         if self.cfg.cache_writes and _has_readable_file(self.cache_db):
             rec, from_cache = get_cached_or_fetch(self.cache_db, id_type, id_value)
             if rec:
-                return rec, ('cache' if from_cache else 'API')
+                return rec, ("cache" if from_cache else "API")
 
         data = fetch_molecule_data(id_type, id_value)
         if not data:
@@ -224,7 +221,9 @@ class SearchService:
             try:
                 create_cache_db(self.cache_db)
                 stored = store_cached_data(self.cache_db, id_type, id_value, data)
-                return (stored or data), 'API'
+                return (stored or data), "API"
             except Exception:
-                logger.debug("store_cached_data failed; returning API data", exc_info=True)
-        return data, 'API'
+                logger.debug(
+                    "store_cached_data failed; returning API data", exc_info=True
+                )
+        return data, "API"

@@ -2,14 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from molid.pipeline import (
-    search_from_input
-)
+from molid.pipeline import search_from_input
 
-__all__ = [
-    "run",
-    "search_from_input"
-]
+__all__ = ["run", "search_from_input"]
 
 
 def run(data: Any) -> tuple[list[dict[str, Any]], str]:

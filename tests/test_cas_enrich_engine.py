@@ -3,14 +3,43 @@ from molid.db.sqlite_manager import DatabaseManager
 from molid.db.cas_enrich import enrich_cas_for_cids
 from molid.db import cas_enrich as ce
 
+
 def _seed_compounds(db_path):
     m = DatabaseManager(db_path)
     # Two distinct chemistries (different IK14/formula) → same CAS later → generic
-    m.executemany("INSERT OR IGNORE INTO compound_data(CID,Title,IUPACName,MolecularFormula,CanonicalSMILES,InChIKey,InChI) VALUES (?,?,?,?,?,?,?)", [
-        (1, "poly something", "poly-foo", "C3H6O", "CC(=O)C", "CSCPPACGZOOCGX-UHFFFAOYSA-N", "InChI=1S/C3H6O/c1-3(2)4/h1-2H3"),
-        (2, "mixture blend", "bar",      "C2H4O", "CC=O",    "IKHGUXGNUITLKF-UHFFFAOYSA-N", "InChI=1S/C2H4O/c1-2-3/h2H,1H3"),
-        (3, "specific",       "baz",      "CO2",   "O=C=O",  "CURLTUGMZLYLDI-UHFFFAOYSA-N", "InChI=1S/CO2/c2-1-3"),
-    ])
+    m.executemany(
+        "INSERT OR IGNORE INTO compound_data(CID,Title,IUPACName,MolecularFormula,CanonicalSMILES,InChIKey,InChI) VALUES (?,?,?,?,?,?,?)",
+        [
+            (
+                1,
+                "poly something",
+                "poly-foo",
+                "C3H6O",
+                "CC(=O)C",
+                "CSCPPACGZOOCGX-UHFFFAOYSA-N",
+                "InChI=1S/C3H6O/c1-3(2)4/h1-2H3",
+            ),
+            (
+                2,
+                "mixture blend",
+                "bar",
+                "C2H4O",
+                "CC=O",
+                "IKHGUXGNUITLKF-UHFFFAOYSA-N",
+                "InChI=1S/C2H4O/c1-2-3/h2H,1H3",
+            ),
+            (
+                3,
+                "specific",
+                "baz",
+                "CO2",
+                "O=C=O",
+                "CURLTUGMZLYLDI-UHFFFAOYSA-N",
+                "InChI=1S/CO2/c2-1-3",
+            ),
+        ],
+    )
+
 
 def test_enrich_generic_downgrade_and_best_cas(tmp_path, monkeypatch):
     db = str(tmp_path / "master.db")
@@ -20,9 +49,12 @@ def test_enrich_generic_downgrade_and_best_cas(tmp_path, monkeypatch):
     # Monkeypatch the batch fetcher to return:
     #  - RN "999-99-9" for both CIDs 1 & 2 (generic due to multi-chemistry + keywords)
     #  - RN "124-38-9" for CID 3 only (specific)
-    def fake_fetch_all_batches(session, batches, timeout_s, max_workers, progress_desc="x"):
+    def fake_fetch_all_batches(
+        session, batches, timeout_s, max_workers, progress_desc="x"
+    ):
         mapping = {1: ["999-99-9"], 2: ["999-99-9"], 3: ["124-38-9"]}
         return mapping, len(batches)
+
     monkeypatch.setattr(ce, "_fetch_all_batches", fake_fetch_all_batches)
 
     # Run enrichment on all CIDs; avoid filtering by "missing" to keep it simple
@@ -42,7 +74,7 @@ def test_enrich_generic_downgrade_and_best_cas(tmp_path, monkeypatch):
 
     m = DatabaseManager(db)
     rows_all = m.query_all("SELECT * FROM cas_mapping", [])
-    got = { (r["CAS"], r["CID"]) for r in rows_all }
+    got = {(r["CAS"], r["CID"]) for r in rows_all}
     assert ("124-38-9", 3) in got  # specific RN present
 
     # After downgrade: generic RN "999-99-9" should have confidence 0

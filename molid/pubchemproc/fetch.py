@@ -12,14 +12,17 @@ from molid.pubchemproc.pubchem_client import (
     get_synonyms,
 )
 
+
 def _is_cas_rn(candidate: str) -> bool:
     import re
+
     m = re.fullmatch(r"(?P<p1>\d{2,7})-(?P<p2>\d{2})-(?P<check>\d{1})", candidate or "")
     if not m:
         return False
-    digits = (m.group('p1') + m.group('p2'))[::-1]
+    digits = (m.group("p1") + m.group("p2"))[::-1]
     checksum = sum(int(c) * (i + 1) for i, c in enumerate(digits)) % 10
-    return checksum == int(m.group('check'))
+    return checksum == int(m.group("check"))
+
 
 def _normalize_keys(rec: dict[str, Any]) -> dict[str, Any]:
     # Be robust to either naming coming from PubChem
@@ -31,6 +34,7 @@ def _normalize_keys(rec: dict[str, Any]) -> dict[str, Any]:
         rec["MolecularFormula"] = rec.pop("Formula")
     return rec
 
+
 def _fetch_iupac_from_pugview(cid: int) -> str | None:
     # 1) try heading-filtered
     data = get_pugview(cid, heading="IUPAC Name")
@@ -40,7 +44,7 @@ def _fetch_iupac_from_pugview(cid: int) -> str | None:
             for sec in rec.get("Section", []) or []:
                 if sec.get("TOCHeading") == "IUPAC Name":
                     for info in sec.get("Information", []) or []:
-                        val = (info.get("Value") or {})
+                        val = info.get("Value") or {}
                         swm = val.get("StringWithMarkup") or []
                         if isinstance(swm, list) and swm and isinstance(swm[0], dict):
                             s = (swm[0].get("String") or "").strip()
@@ -87,6 +91,7 @@ def _fetch_iupac_from_pugview(cid: int) -> str | None:
     rec = (payload or {}).get("Record", {})
     return _walk(rec.get("Section", []) or [])
 
+
 def fetch_molecule_data(
     id_type: str,
     id_value: str,
@@ -117,7 +122,7 @@ def fetch_molecule_data(
     try:
         cids = resolve_to_cids(id_type, id_value)
     except requests.HTTPError as e:
-        if e.response is not None and getattr(e.response, 'status_code', None) == 404:
+        if e.response is not None and getattr(e.response, "status_code", None) == 404:
             return []
         raise
     if not cids:
@@ -141,6 +146,7 @@ def fetch_molecule_data(
         if id_type.lower() == "cas" and len(cids) == 1:
             rec.setdefault("CAS", str(id_value))
     return props
+
 
 def _prefer_synonym_cas(cid: int, rec: dict) -> None:
     # Short timeout for synonyms; fail open to xrefs
