@@ -1,6 +1,6 @@
 import importlib.util
+import json
 import textwrap
-from pathlib import Path
 
 import pytest
 from ase.build import molecule
@@ -42,31 +42,25 @@ BASIC_RESULT = {
 has_openbabel = importlib.util.find_spec("openbabel") is not None
 
 
-@pytest.fixture(scope="session", autouse=True)
-def clear_cache():
-    cache_path = Path("tests/data/test_cache.db")
-    if cache_path.exists():
-        cache_path.unlink()
-
-
 @pytest.fixture
-def set_env(request, monkeypatch):
+def set_env(request, monkeypatch, tmp_path):
     # params: (sources, network, cache_writes, expect_kind, query_dict)
     sources, network, cache_writes, expect_kind, query = getattr(
         request, "param", (["api"], "allow", True, "advanced", {"SMILES": "C(=O)=O"})
     )
-    import json
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(sources))
     monkeypatch.setenv("MOLID_NETWORK", network)
     monkeypatch.setenv("MOLID_CACHE_WRITES", "true" if cache_writes else "false")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     if "cache" in sources:
-        create_cache_db("tests/data/test_cache.db")
+        create_cache_db(cache_db)
         insert_dict_records(
-            db_file="tests/data/test_cache.db",
+            db_file=cache_db,
             table="cached_molecules",
             records=[ADVANCED_RESULT],
             ignore_conflicts=True,
@@ -114,14 +108,15 @@ def test_search_identifier(set_env):
     not has_openbabel,
     reason="OpenBabel not installed; Atoms→InChIKey conversion is optional",
 )
-def test_search_from_atoms(monkeypatch):
-    import json
+def test_search_from_atoms(monkeypatch, tmp_path):
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["cache", "api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "true")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     atoms = molecule("CH4")
     result, source = search_from_atoms(atoms)
@@ -134,13 +129,14 @@ def test_search_from_atoms(monkeypatch):
     reason="OpenBabel not installed; XYZ→InChIKey path uses OpenBabel",
 )
 def test_search_from_file_xyz(tmp_path, monkeypatch):
-    import json
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["cache", "api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "true")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     xyz_file = tmp_path / "methane.xyz"
     xyz_file.write_text(
@@ -157,13 +153,14 @@ def test_search_from_file_xyz(tmp_path, monkeypatch):
 
 
 def test_search_from_file_invalid_extension(tmp_path, monkeypatch):
-    import json
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "false")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     invalid = tmp_path / "not.xyz.txt"
     invalid.write_text("foo")
@@ -171,14 +168,15 @@ def test_search_from_file_invalid_extension(tmp_path, monkeypatch):
         search_from_file(str(invalid))
 
 
-def test_search_from_input_dict(monkeypatch):
-    import json
+def test_search_from_input_dict(monkeypatch, tmp_path):
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "false")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     # Use an identifier that PubChem resolves via API without hitting the
     # canonicalsmiles namespace issue.
@@ -193,14 +191,15 @@ def test_search_from_input_dict(monkeypatch):
     not has_openbabel,
     reason="OpenBabel not installed; raw XYZ path uses Atoms→InChIKey",
 )
-def test_search_from_input_raw_xyz(monkeypatch):
-    import json
+def test_search_from_input_raw_xyz(monkeypatch, tmp_path):
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["cache", "api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "true")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     xyz = (
         "3\nwater\n"
@@ -213,14 +212,15 @@ def test_search_from_input_raw_xyz(monkeypatch):
     assert isinstance(source, str)
 
 
-def test_search_from_input_invalid_type(monkeypatch):
-    import json
+def test_search_from_input_invalid_type(monkeypatch, tmp_path):
+
+    cache_db = str(tmp_path / "test_cache.db")
 
     monkeypatch.setenv("MOLID_SOURCES", json.dumps(["api"]))
     monkeypatch.setenv("MOLID_NETWORK", "allow")
     monkeypatch.setenv("MOLID_CACHE_WRITES", "false")
     monkeypatch.setenv("MOLID_MASTER_DB", "tests/data/test_master.db")
-    monkeypatch.setenv("MOLID_CACHE_DB", "tests/data/test_cache.db")
+    monkeypatch.setenv("MOLID_CACHE_DB", cache_db)
 
     with pytest.raises(ValueError):
         search_from_input(12345)
