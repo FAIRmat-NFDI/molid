@@ -595,7 +595,7 @@ wheels = [
 
 [[package]]
 name = "molid"
-version = "0.8.4"
+version = "0.8.5"
 source = { editable = "." }
 dependencies = [
     { name = "appdirs" },
@@ -790,6 +790,7 @@ wheels = [
 name = "openbabel-wheel"
 version = "3.1.1.23"
 source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/2d/720579ccff6247aa8fd2d397a7bd592dae72ef0f0133fe6cce2323ea13a2/openbabel_wheel-3.1.1.23.tar.gz", hash = "sha256:68fd86540ff0895d36b26f25721187399fb6073f874f6ae474a574e6acf8759d", size = 13256, upload-time = "2026-03-06T01:31:11.497Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/21/8f/30b189f0dcb03855965ea0f9a47915d8c6a6d8c09885e800fb5dda979032/openbabel_wheel-3.1.1.23-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:6847e80ea0a9a23b09d6127f8c9dd71f48e9b930914bec9a6966c69e723bb706", size = 11605902, upload-time = "2026-02-17T13:17:33.5Z" },
     { url = "https://files.pythonhosted.org/packages/cb/4f/77f78d4aa96b3d69d09bcad5825863ff58ec2c84a0b629b01f08e74efa53/openbabel_wheel-3.1.1.23-cp310-cp310-macosx_14_0_x86_64.whl", hash = "sha256:2cb6d169ec1dfdc00619a6f67e6bdf23e27f2556cb3ec7c7d8bd8cb125b7d6df", size = 12213421, upload-time = "2026-02-17T13:17:35.698Z" },
